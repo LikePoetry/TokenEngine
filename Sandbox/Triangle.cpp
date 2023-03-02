@@ -1,6 +1,7 @@
 // 2023年3月2日 三角形的绘制结构
 // 验证层消息，未添加调试信息的回调
 // 简单选取物理设备，还可以通过显卡性能等要求进行选取，一般情况下，仅有一个独立显卡！
+// 创建逻辑设备，并创建图像队列
 
 #include "Triangle.h"
 #include <iostream>
@@ -41,6 +42,7 @@ void Triangle::initVulkan()
 {
 	createInstance();
 	pickPhysicalDevice();
+	createLogicalDevice();
 }
 
 /// <summary>
@@ -111,6 +113,49 @@ void Triangle::pickPhysicalDevice()
 	if (physicalDevice == VK_NULL_HANDLE) {
 		throw std::runtime_error("failed to find a suitable GPU!");
 	}
+}
+
+/// <summary>
+/// 创建逻辑设备
+/// </summary>
+void Triangle::createLogicalDevice()
+{
+	QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
+
+	// 图形队列
+	VkDeviceQueueCreateInfo queueCreateInfo{};
+	queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+	queueCreateInfo.queueFamilyIndex = indices.graphicsFamily.value();
+	queueCreateInfo.queueCount = 1;
+
+	float queuePriority = 1.0f;
+	queueCreateInfo.pQueuePriorities = &queuePriority;
+
+	VkPhysicalDeviceFeatures deviceFeatures{};
+
+	VkDeviceCreateInfo createInfo{};
+	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+
+	createInfo.pQueueCreateInfos = &queueCreateInfo;
+	createInfo.queueCreateInfoCount = 1;
+
+	createInfo.pEnabledFeatures = &deviceFeatures;
+
+	createInfo.enabledExtensionCount = 0;
+
+	if (enableValidationLayers) {
+		createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
+		createInfo.ppEnabledLayerNames = validationLayers.data();
+	}
+	else {
+		createInfo.enabledLayerCount = 0;
+	}
+
+	if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &device) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create logical device!");
+	}
+
+	vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphicsQueue);
 }
 
 /// <summary>

@@ -35,6 +35,8 @@ private:
 	void createInstance();
 	//选定好物理设备
 	void pickPhysicalDevice();
+	//选取逻辑设备，并创建相关队列
+	void createLogicalDevice();
 
 	//验证层是否可用
 	bool checkValidationLayerSupport();
@@ -47,6 +49,8 @@ private:
 
 	VkInstance instance;
 	VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
+	VkDevice device;
+	VkQueue graphicsQueue;
 
 private:
 	const uint32_t WIDTH = 800;
