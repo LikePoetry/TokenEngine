@@ -19,9 +19,14 @@ private:
 	void mainLoop();
 	void cleanUp();
 
+	//´´½¨VulkanÊµÀý
+	void createInstance();
+
 private:
 	GLFWwindow* window;
 
 	const uint32_t WIDTH = 800;
 	const uint32_t HEIGHT = 600;
+
+	VkInstance instance;
 };
