@@ -1,4 +1,5 @@
 // 2023年3月2日 三角形的绘制结构
+// 验证层消息，未添加调试信息的回调
 
 #include "Triangle.h"
 #include <iostream>
@@ -45,6 +46,10 @@ void Triangle::initVulkan()
 /// </summary>
 void Triangle::createInstance()
 {
+	if (enableValidationLayers && !checkValidationLayerSupport()) {
+		throw std::runtime_error("validation layers requested, but not available!");
+	}
+
 	//给驱动程序提供一些可用信息
 	VkApplicationInfo appInfo{};
 	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -65,12 +70,46 @@ void Triangle::createInstance()
 	createInfo.enabledExtensionCount = glfwExtensionCount;
 	createInfo.ppEnabledExtensionNames = glfwExtensions;
 
-	// 需要启用哪些扩展，后续详细说明
-	createInfo.enabledLayerCount = 0;
+	// 需要启用哪些扩展。
+	if (enableValidationLayers) {
+		createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
+		createInfo.ppEnabledLayerNames = validationLayers.data();
+	}
+	else {
+		createInfo.enabledLayerCount = 0;
+
+		createInfo.pNext = nullptr;
+	}
 
 	if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create instance!");
 	}
+}
+
+bool Triangle::checkValidationLayerSupport()
+{
+	uint32_t layerCount;
+	vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
+
+	std::vector<VkLayerProperties> availableLayers(layerCount);
+	vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
+
+	for (const char* layerName : validationLayers) {
+		bool layerFound = false;
+
+		for (const auto& layerProperties : availableLayers) {
+			if (strcmp(layerName, layerProperties.layerName) == 0) {
+				layerFound = true;
+				break;
+			}
+		}
+
+		if (!layerFound) {
+			return false;
+		}
+	}
+
+	return true;
 }
 
 /// <summary>
