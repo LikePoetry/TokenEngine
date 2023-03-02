@@ -1,5 +1,6 @@
 // 2023年3月2日 三角形的绘制结构
 // 验证层消息，未添加调试信息的回调
+// 简单选取物理设备，还可以通过显卡性能等要求进行选取，一般情况下，仅有一个独立显卡！
 
 #include "Triangle.h"
 #include <iostream>
@@ -39,6 +40,7 @@ void Triangle::initWindow()
 void Triangle::initVulkan()
 {
 	createInstance();
+	pickPhysicalDevice();
 }
 
 /// <summary>
@@ -86,6 +88,35 @@ void Triangle::createInstance()
 	}
 }
 
+/// <summary>
+/// 选择物理设备
+/// </summary>
+void Triangle::pickPhysicalDevice()
+{
+	uint32_t deviceCount = 0;
+	vkEnumeratePhysicalDevices(instance,&deviceCount, nullptr);
+	if (deviceCount == 0) {
+		throw std::runtime_error("failed to find GPUs with Vulkan support!");
+	}
+	std::vector<VkPhysicalDevice> devices(deviceCount);
+	vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
+	// 实际应用中多显卡支持还要检查显卡的性能等信息。
+	for (const auto& device : devices) {
+		if (isDeviceSuitable(device)) {
+			physicalDevice = device;
+			break;
+		}
+	}
+
+	if (physicalDevice == VK_NULL_HANDLE) {
+		throw std::runtime_error("failed to find a suitable GPU!");
+	}
+}
+
+/// <summary>
+/// 检查验证层是否支持
+/// </summary>
+/// <returns></returns>
 bool Triangle::checkValidationLayerSupport()
 {
 	uint32_t layerCount;
@@ -110,6 +141,44 @@ bool Triangle::checkValidationLayerSupport()
 	}
 
 	return true;
+}
+
+/// <summary>
+/// 选择合适的物理设备
+/// </summary>
+/// <param name="device"></param>
+/// <returns></returns>
+bool Triangle::isDeviceSuitable(VkPhysicalDevice device)
+{
+	QueueFamilyIndices indices = findQueueFamilies(device);
+
+	return indices.isComplete();
+}
+
+QueueFamilyIndices Triangle::findQueueFamilies(VkPhysicalDevice device)
+{
+	QueueFamilyIndices indices;
+
+	uint32_t queueFamilyCount = 0;
+	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+
+	std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+
+	int i = 0;
+	for (const auto& queueFamily : queueFamilies) {
+		if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+			indices.graphicsFamily = i;
+		}
+
+		if (indices.isComplete()) {
+			break;
+		}
+
+		i++;
+	}
+
+	return indices;
 }
 
 /// <summary>
