@@ -11,9 +11,11 @@
 
 struct QueueFamilyIndices {
 	std::optional<uint32_t> graphicsFamily;
-
+	std::optional<uint32_t> presentFamily;
 	bool isComplete() {
-		return graphicsFamily.has_value();
+		return graphicsFamily.has_value()
+			&& presentFamily.has_value();
+
 	}
 };
 
@@ -37,6 +39,9 @@ private:
 	void pickPhysicalDevice();
 	//选取逻辑设备，并创建相关队列
 	void createLogicalDevice();
+	//创建surface
+	void createSurface();
+
 
 	//验证层是否可用
 	bool checkValidationLayerSupport();
@@ -50,7 +55,11 @@ private:
 	VkInstance instance;
 	VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
 	VkDevice device;
+
 	VkQueue graphicsQueue;
+	VkQueue presentQueue;
+
+	VkSurfaceKHR surface;
 
 private:
 	const uint32_t WIDTH = 800;

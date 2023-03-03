@@ -2,9 +2,11 @@
 // 验证层消息，未添加调试信息的回调
 // 简单选取物理设备，还可以通过显卡性能等要求进行选取，一般情况下，仅有一个独立显卡！
 // 创建逻辑设备，并创建图像队列
+// Surface的创建 2023年3月3日14:33:45.创建完成后，需要修改队列，添加上Present Queue;
 
 #include "Triangle.h"
 #include <iostream>
+#include <set>
 
 Triangle::Triangle()
 {
@@ -41,6 +43,7 @@ void Triangle::initWindow()
 void Triangle::initVulkan()
 {
 	createInstance();
+	createSurface();
 	pickPhysicalDevice();
 	createLogicalDevice();
 }
@@ -91,6 +94,16 @@ void Triangle::createInstance()
 }
 
 /// <summary>
+/// 创建窗口Surface
+/// </summary>
+void Triangle::createSurface()
+{
+	if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create window surface!");
+	}
+}
+
+/// <summary>
 /// 选择物理设备
 /// </summary>
 void Triangle::pickPhysicalDevice()
@@ -122,22 +135,28 @@ void Triangle::createLogicalDevice()
 {
 	QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
 
+	std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+	std::set<uint32_t> uniqueQueueFamilies = { indices.graphicsFamily.value(), indices.presentFamily.value() };
 	// 图形队列
-	VkDeviceQueueCreateInfo queueCreateInfo{};
-	queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-	queueCreateInfo.queueFamilyIndex = indices.graphicsFamily.value();
-	queueCreateInfo.queueCount = 1;
-
 	float queuePriority = 1.0f;
-	queueCreateInfo.pQueuePriorities = &queuePriority;
+
+	for (uint32_t queueFamily : uniqueQueueFamilies) 
+	{
+		VkDeviceQueueCreateInfo queueCreateInfo{};
+		queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+		queueCreateInfo.queueFamilyIndex = queueFamily;
+		queueCreateInfo.queueCount = 1;
+		queueCreateInfo.pQueuePriorities = &queuePriority;
+		queueCreateInfos.push_back(queueCreateInfo);
+	}
 
 	VkPhysicalDeviceFeatures deviceFeatures{};
 
 	VkDeviceCreateInfo createInfo{};
 	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 
-	createInfo.pQueueCreateInfos = &queueCreateInfo;
-	createInfo.queueCreateInfoCount = 1;
+	createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
+	createInfo.pQueueCreateInfos = queueCreateInfos.data();
 
 	createInfo.pEnabledFeatures = &deviceFeatures;
 
@@ -156,6 +175,8 @@ void Triangle::createLogicalDevice()
 	}
 
 	vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphicsQueue);
+	vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &presentQueue);
+
 }
 
 /// <summary>
@@ -216,6 +237,13 @@ QueueFamilyIndices Triangle::findQueueFamilies(VkPhysicalDevice device)
 			indices.graphicsFamily = i;
 		}
 
+		VkBool32 presentSupport = false;
+		vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
+
+		if (presentSupport) {
+			indices.presentFamily = i;
+		}
+
 		if (indices.isComplete()) {
 			break;
 		}
@@ -242,6 +270,8 @@ void Triangle::mainLoop()
 /// </summary>
 void Triangle::cleanUp()
 {
+	//清理surface
+	vkDestroySurfaceKHR(instance, surface, nullptr);
 	//清理 VkInstance;
 	vkDestroyInstance(instance, nullptr);
 
