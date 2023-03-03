@@ -5,6 +5,7 @@
 // Surface的创建 2023年3月3日14:33:45.创建完成后，需要修改队列，添加上Present Queue;
 // 交换链的创建 2023年3月3日16:48:25
 // 创建VkImageView 用于使用交换链上面的 VkImage;
+// 创建图形管线 操作着色器和固定功能 及 渲染通道;
 
 #include "Triangle.h"
 #include <iostream>
@@ -51,6 +52,9 @@ void Triangle::initVulkan()
 	createLogicalDevice();
 	createSwapChain();
 	createImageViews();
+
+	//------创建渲染管线
+	createGraphicsPipeline();
 }
 
 /// <summary>
@@ -165,6 +169,14 @@ void Triangle::createSwapChain()
 
 	swapChainImageFormat = surfaceFormat.format;
 	swapChainExtent = extent;
+}
+
+/// <summary>
+/// 创建图像管线
+/// </summary>
+void Triangle::createGraphicsPipeline()
+{
+
 }
 
 /// <summary>

@@ -54,6 +54,8 @@ private:
 	//创建VkImageViews用于使用交换链上面的VkImage
 	void createImageViews();
 
+	//创建渲染管线
+	void createGraphicsPipeline();
 
 	//验证层是否可用
 	bool checkValidationLayerSupport();
