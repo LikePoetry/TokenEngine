@@ -19,6 +19,14 @@ struct QueueFamilyIndices {
 	}
 };
 
+// 交换链支持详情
+struct SwapChainSupportDetails
+{
+	VkSurfaceCapabilitiesKHR capabilities;
+	std::vector<VkSurfaceFormatKHR> formats;
+	std::vector<VkPresentModeKHR> presentModes;
+};
+
 class Triangle
 {
 public:
@@ -41,6 +49,8 @@ private:
 	void createLogicalDevice();
 	//创建surface
 	void createSurface();
+	//创建交换链
+	void createSwapChain();
 
 
 	//验证层是否可用
@@ -49,6 +59,17 @@ private:
 	bool isDeviceSuitable(VkPhysicalDevice device);
 	// 设备的队列族信息
 	QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
+	//检查设备的扩展支持情况
+	bool checkDeviceExtensionSupport(VkPhysicalDevice device);
+	// 查询交换链的支持详情
+	SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device);
+	// 选取format和颜色空间
+	VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
+	// 选取展现的模式
+	VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
+	// 选取交换范围
+	VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
+
 private:
 	GLFWwindow* window;
 
@@ -61,6 +82,12 @@ private:
 
 	VkSurfaceKHR surface;
 
+	//交换链相关
+	VkSwapchainKHR swapChain;
+	std::vector<VkImage> swapChainImages;
+	VkFormat swapChainImageFormat;
+	VkExtent2D swapChainExtent;
+
 private:
 	const uint32_t WIDTH = 800;
 	const uint32_t HEIGHT = 600;
@@ -70,5 +97,9 @@ private:
 	};
 
 	const bool enableValidationLayers = true;		//启用验证层消息
+
+	const std::vector<const char*> deviceExtensions = {
+	VK_KHR_SWAPCHAIN_EXTENSION_NAME
+	};
 
 };
