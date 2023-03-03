@@ -4,6 +4,7 @@
 // 创建逻辑设备，并创建图像队列
 // Surface的创建 2023年3月3日14:33:45.创建完成后，需要修改队列，添加上Present Queue;
 // 交换链的创建 2023年3月3日16:48:25
+// 创建VkImageView 用于使用交换链上面的 VkImage;
 
 #include "Triangle.h"
 #include <iostream>
@@ -49,6 +50,7 @@ void Triangle::initVulkan()
 	pickPhysicalDevice();
 	createLogicalDevice();
 	createSwapChain();
+	createImageViews();
 }
 
 /// <summary>
@@ -163,6 +165,39 @@ void Triangle::createSwapChain()
 
 	swapChainImageFormat = surfaceFormat.format;
 	swapChainExtent = extent;
+}
+
+/// <summary>
+/// 创建ImageView 用于使用交换链上面VkImage
+/// </summary>
+void Triangle::createImageViews()
+{
+	// 调整大小来适应将来要创建的图像视图
+	swapChainImageViews.resize(swapChainImages.size());
+	for (size_t i = 0; i < swapChainImages.size(); i++) 
+	{
+		VkImageViewCreateInfo createInfo{};
+		createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		createInfo.image = swapChainImages[i];
+
+		createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		createInfo.format = swapChainImageFormat;
+
+		createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+		createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+		createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+		createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+
+		createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		createInfo.subresourceRange.baseMipLevel = 0;
+		createInfo.subresourceRange.levelCount = 1;
+		createInfo.subresourceRange.baseArrayLayer = 0;
+		createInfo.subresourceRange.layerCount = 1;
+
+		if (vkCreateImageView(device, &createInfo, nullptr, &swapChainImageViews[i]) != VK_SUCCESS) {
+			throw std::runtime_error("failed to create image views!");
+		}
+	}
 }
 
 /// <summary>
@@ -433,6 +468,10 @@ void Triangle::mainLoop()
 /// </summary>
 void Triangle::cleanUp()
 {
+	//清理图像视图
+	for (auto imageView : swapChainImageViews) {
+		vkDestroyImageView(device, imageView, nullptr);
+	}
 	//清理交换链
 	vkDestroySwapchainKHR(device, swapChain, nullptr);
 	//清理逻辑设备

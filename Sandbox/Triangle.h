@@ -51,6 +51,8 @@ private:
 	void createSurface();
 	//创建交换链
 	void createSwapChain();
+	//创建VkImageViews用于使用交换链上面的VkImage
+	void createImageViews();
 
 
 	//验证层是否可用
@@ -87,6 +89,9 @@ private:
 	std::vector<VkImage> swapChainImages;
 	VkFormat swapChainImageFormat;
 	VkExtent2D swapChainExtent;
+
+	// 用于使用VkImage
+	std::vector<VkImageView> swapChainImageViews;
 
 private:
 	const uint32_t WIDTH = 800;
