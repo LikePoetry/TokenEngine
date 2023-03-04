@@ -53,7 +53,8 @@ private:
 	void createSwapChain();
 	//创建VkImageViews用于使用交换链上面的VkImage
 	void createImageViews();
-
+	// 创建渲染通道
+	void createRenderPass();
 	//创建渲染管线
 	void createGraphicsPipeline();
 
@@ -73,6 +74,8 @@ private:
 	VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
 	// 选取交换范围
 	VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
+	// 创建着色器模块
+	VkShaderModule createShaderModule(const std::vector<char>& code);
 
 private:
 	GLFWwindow* window;
@@ -94,6 +97,11 @@ private:
 
 	// 用于使用VkImage
 	std::vector<VkImageView> swapChainImageViews;
+
+	//	渲染通道
+	VkRenderPass renderPass;
+	// 渲染管线布局
+	VkPipelineLayout pipelineLayout;
 
 private:
 	const uint32_t WIDTH = 800;
