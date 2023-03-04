@@ -58,6 +58,8 @@ private:
 	//创建渲染管线
 	void createGraphicsPipeline();
 
+	void createFramebuffers();
+
 	//验证层是否可用
 	bool checkValidationLayerSupport();
 	//选取合适的物理设备
@@ -102,6 +104,10 @@ private:
 	VkRenderPass renderPass;
 	// 渲染管线布局
 	VkPipelineLayout pipelineLayout;
+	// 图形管线
+	VkPipeline graphicsPipeline;
+
+	std::vector<VkFramebuffer> swapChainFramebuffers;
 
 private:
 	const uint32_t WIDTH = 800;
