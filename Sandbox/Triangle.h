@@ -57,8 +57,14 @@ private:
 	void createRenderPass();
 	//创建渲染管线
 	void createGraphicsPipeline();
-
+	//创建帧缓冲区
 	void createFramebuffers();
+	//创建命令池
+	void createCommandPool();
+	//创建命令缓冲区
+	void createCommandBuffer();
+	//命令缓冲区记录
+	void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 
 	//验证层是否可用
 	bool checkValidationLayerSupport();
@@ -108,6 +114,10 @@ private:
 	VkPipeline graphicsPipeline;
 
 	std::vector<VkFramebuffer> swapChainFramebuffers;
+	// 命令缓冲池
+	VkCommandPool commandPool;
+	// 命令缓冲区
+	VkCommandBuffer commandBuffer;
 
 private:
 	const uint32_t WIDTH = 800;
