@@ -62,7 +62,7 @@ private:
 	//创建命令池
 	void createCommandPool();
 	//创建命令缓冲区
-	void createCommandBuffer();
+	void createCommandBuffers();
 	//命令缓冲区记录
 	void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 	//渲染与演示
@@ -121,13 +121,13 @@ private:
 	// 命令缓冲池
 	VkCommandPool commandPool;
 	// 命令缓冲区
-	VkCommandBuffer commandBuffer;
+	std::vector<VkCommandBuffer> commandBuffers;
 
 	// 信号量
-	VkSemaphore imageAvailableSemaphore;
-	VkSemaphore renderFinishedSemaphore;
+	std::vector<VkSemaphore> imageAvailableSemaphores;
+	std::vector<VkSemaphore> renderFinishedSemaphores;
 	// 栅栏
-	VkFence inFlightFence;
+	std::vector<VkFence> inFlightFences;
 
 private:
 	const uint32_t WIDTH = 800;
@@ -142,5 +142,10 @@ private:
 	const std::vector<const char*> deviceExtensions = {
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME
 	};
+
+	// 同时渲染的帧的数量
+	const int MAX_FRAMES_IN_FLIGHT = 2;
+	// 用于同时渲染多个帧
+	uint32_t currentFrame = 0;
 
 };
