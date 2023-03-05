@@ -51,6 +51,10 @@ private:
 	void createSurface();
 	//创建交换链
 	void createSwapChain();
+	//旧的交换链的清理
+	void cleanupSwapChain();
+	//重新创建交换链
+	void recreateSwapChain();
 	//创建VkImageViews用于使用交换链上面的VkImage
 	void createImageViews();
 	// 创建渲染通道
@@ -70,6 +74,7 @@ private:
 	//创建同步对象
 	void createSyncObjects();
 
+
 	//验证层是否可用
 	bool checkValidationLayerSupport();
 	//选取合适的物理设备
@@ -88,6 +93,7 @@ private:
 	VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
 	// 创建着色器模块
 	VkShaderModule createShaderModule(const std::vector<char>& code);
+
 
 private:
 	GLFWwindow* window;
@@ -128,6 +134,9 @@ private:
 	std::vector<VkSemaphore> renderFinishedSemaphores;
 	// 栅栏
 	std::vector<VkFence> inFlightFences;
+
+public:
+	bool framebufferResized = false;
 
 private:
 	const uint32_t WIDTH = 800;

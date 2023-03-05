@@ -32,6 +32,12 @@ static std::vector<char> readFile(const std::string& filename)
 	return buffer;
 }
 
+static void framebufferResizeCallback(GLFWwindow* window, int width, int height) 
+{
+	auto app = reinterpret_cast<Triangle*>(glfwGetWindowUserPointer(window));
+	app->framebufferResized = true;
+}
+
 Triangle::Triangle()
 {
 
@@ -57,8 +63,11 @@ void Triangle::initWindow()
 {
 	glfwInit();
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+	//glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 	window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
+	//指定UserPointer;
+	glfwSetWindowUserPointer(window, this);
+	glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
 }
 
 /// <summary>
@@ -76,7 +85,7 @@ void Triangle::initVulkan()
 	//------创建渲染相关
 	createRenderPass();
 	createGraphicsPipeline();
-	
+
 	// 与绘制相关
 	createFramebuffers();
 	createCommandPool();
@@ -151,7 +160,7 @@ void Triangle::createSwapChain()
 	VkExtent2D extent = chooseSwapExtent(swapChainSupport.capabilities);
 
 	uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
-	if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount) 
+	if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount)
 	{
 		imageCount = swapChainSupport.capabilities.maxImageCount;
 	}
@@ -196,6 +205,43 @@ void Triangle::createSwapChain()
 
 	swapChainImageFormat = surfaceFormat.format;
 	swapChainExtent = extent;
+}
+
+/// <summary>
+/// 重新创建交换链
+/// </summary>
+void Triangle::recreateSwapChain()
+{
+	int width = 0, height = 0;
+	glfwGetFramebufferSize(window, &width, &height);
+	while (width == 0 || height == 0) {
+		glfwGetFramebufferSize(window, &width, &height);
+		glfwWaitEvents();
+	}
+
+	vkDeviceWaitIdle(device);
+
+	cleanupSwapChain();
+
+	createSwapChain();
+	createImageViews();
+	createFramebuffers();
+}
+
+/// <summary>
+/// 旧的交换链清理
+/// </summary>
+void Triangle::cleanupSwapChain()
+{
+	for (size_t i = 0; i < swapChainFramebuffers.size(); i++) {
+		vkDestroyFramebuffer(device, swapChainFramebuffers[i], nullptr);
+	}
+
+	for (size_t i = 0; i < swapChainImageViews.size(); i++) {
+		vkDestroyImageView(device, swapChainImageViews[i], nullptr);
+	}
+
+	vkDestroySwapchainKHR(device, swapChain, nullptr);
 }
 
 /// <summary>
@@ -531,13 +577,23 @@ void Triangle::drawFrame()
 	//	呈现交换链图像
 
 	vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
-	//	重置栅栏信号
-	vkResetFences(device, 1, &inFlightFences[currentFrame]);
 
 	//	从交换链获取图像
 	uint32_t imageIndex;
-	vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
-	 
+	// 次优或过时的交换链，需要重新创建交换链
+	VkResult result = vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
+
+	if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+		recreateSwapChain();
+		return;
+	}
+	else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+		throw std::runtime_error("failed to acquire swap chain image!");
+	}
+
+	// 重置栅栏 Only reset the fence if we are submitting work
+	vkResetFences(device, 1, &inFlightFences[currentFrame]);
+
 	// 记录命令缓冲区
 	vkResetCommandBuffer(commandBuffers[currentFrame], 0);
 	recordCommandBuffer(commandBuffers[currentFrame], imageIndex);
@@ -575,7 +631,15 @@ void Triangle::drawFrame()
 
 	presentInfo.pImageIndices = &imageIndex;
 
-	vkQueuePresentKHR(presentQueue, &presentInfo);
+	result = vkQueuePresentKHR(presentQueue, &presentInfo);
+
+	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized) {
+		framebufferResized = false;
+		recreateSwapChain();
+	}
+	else if (result != VK_SUCCESS) {
+		throw std::runtime_error("failed to present swap chain image!");
+	}
 
 	currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
@@ -633,7 +697,7 @@ void Triangle::createImageViews()
 {
 	// 调整大小来适应将来要创建的图像视图
 	swapChainImageViews.resize(swapChainImages.size());
-	for (size_t i = 0; i < swapChainImages.size(); i++) 
+	for (size_t i = 0; i < swapChainImages.size(); i++)
 	{
 		VkImageViewCreateInfo createInfo{};
 		createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -840,7 +904,7 @@ VkSurfaceFormatKHR Triangle::chooseSwapSurfaceFormat(const std::vector<VkSurface
 {
 	for (const auto& availableFormat : availableFormats)
 	{
-		if (availableFormat.format == VK_FORMAT_R8G8B8A8_SRGB && availableFormat.colorSpace==VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+		if (availableFormat.format == VK_FORMAT_R8G8B8A8_SRGB && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
 		{
 			return availableFormat;
 		}
@@ -930,6 +994,9 @@ void Triangle::mainLoop()
 /// </summary>
 void Triangle::cleanUp()
 {
+	//旧的交换链清理
+	cleanupSwapChain();
+
 	// 同步对象
 	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
 		vkDestroySemaphore(device, renderFinishedSemaphores[i], nullptr);
@@ -940,22 +1007,13 @@ void Triangle::cleanUp()
 	// 命令缓冲池，销毁时自动释放其中的命令缓冲区
 	vkDestroyCommandPool(device, commandPool, nullptr);
 
-	// 帧缓冲区
-	for (auto framebuffer : swapChainFramebuffers) {
-		vkDestroyFramebuffer(device, framebuffer, nullptr);
-	}
 	// 渲染管线
 	vkDestroyPipeline(device, graphicsPipeline, nullptr);
 	// 管线布局
 	vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
 	// 渲染通道
 	vkDestroyRenderPass(device, renderPass, nullptr);
-	//清理图像视图
-	for (auto imageView : swapChainImageViews) {
-		vkDestroyImageView(device, imageView, nullptr);
-	}
-	//清理交换链
-	vkDestroySwapchainKHR(device, swapChain, nullptr);
+
 	//清理逻辑设备
 	vkDestroyDevice(device, nullptr);
 	//清理surface
