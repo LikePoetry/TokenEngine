@@ -65,6 +65,10 @@ private:
 	void createCommandBuffer();
 	//命令缓冲区记录
 	void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+	//渲染与演示
+	void drawFrame();
+	//创建同步对象
+	void createSyncObjects();
 
 	//验证层是否可用
 	bool checkValidationLayerSupport();
@@ -118,6 +122,12 @@ private:
 	VkCommandPool commandPool;
 	// 命令缓冲区
 	VkCommandBuffer commandBuffer;
+
+	// 信号量
+	VkSemaphore imageAvailableSemaphore;
+	VkSemaphore renderFinishedSemaphore;
+	// 栅栏
+	VkFence inFlightFence;
 
 private:
 	const uint32_t WIDTH = 800;
