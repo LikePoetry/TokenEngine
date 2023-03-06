@@ -8,6 +8,8 @@
 #include <vector>
 #include <optional>
 
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include <array>
 
@@ -21,7 +23,7 @@ struct UniformBufferObject
 // 顶点数据结构体
 struct Vertex
 {
-	glm::vec2 pos;
+	glm::vec3 pos;
 	glm::vec3 color;
 	glm::vec2 texCoord;
 
@@ -29,7 +31,7 @@ struct Vertex
 		std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{};
 		attributeDescriptions[0].binding = 0;
 		attributeDescriptions[0].location = 0;
-		attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+		attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
 		attributeDescriptions[0].offset = offsetof(Vertex, pos);
 
 		attributeDescriptions[1].binding = 0;
@@ -150,10 +152,12 @@ private:
 	//创建纹理采样器
 	void createTextureSampler();
 
-	VkImageView createImageView(VkImage image, VkFormat format);
+	VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
 
 	//创建纹理图像视图
 	void createTextureImageView();
+	//创建深度图像和视图
+	void createDepthResources();
 
 	//创建图像
 	void createImage(uint32_t width, 
@@ -197,6 +201,13 @@ private:
 	//辅助函数
 	VkCommandBuffer beginSingleTimeCommands();
 	void endSingleTimeCommands(VkCommandBuffer commandBuffer);
+
+	//用于深度视图的创建
+	VkFormat findDepthFormat();
+
+	VkFormat findSupportedFormat(const std::vector<VkFormat>& candidates, 
+		VkImageTiling tiling, 
+		VkFormatFeatureFlags features);
 private:
 	GLFWwindow* window;
 
@@ -262,6 +273,11 @@ private:
 	VkImageView textureImageView;
 	// 纹理采样
 	VkSampler textureSampler;
+
+	// 深度缓冲相关
+	VkImage depthImage;
+	VkDeviceMemory depthImageMemory;
+	VkImageView depthImageView;
 public:
 	bool framebufferResized = false;
 
@@ -286,14 +302,20 @@ private:
 
 	// 顶点信息
 	const std::vector<Vertex> vertices = {
-	{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-	{{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-	{{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-	{{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}
+	 {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+	{{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+	{{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+	{{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
+
+	{{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+	{{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+	{{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+	{{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}
 	};
 
 	// 顶点索引信息
 	const std::vector<uint16_t> indices = {
-	0, 1, 2, 2, 3, 0
+	0, 1, 2, 2, 3, 0,
+	4, 5, 6, 6, 7, 4
 	};
 };
