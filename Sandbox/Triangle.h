@@ -107,7 +107,8 @@ private:
 	void drawFrame();
 	//创建同步对象
 	void createSyncObjects();
-
+	//创建顶点缓冲
+	void createVertexBuffer();
 
 	//验证层是否可用
 	bool checkValidationLayerSupport();
@@ -127,6 +128,8 @@ private:
 	VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
 	// 创建着色器模块
 	VkShaderModule createShaderModule(const std::vector<char>& code);
+	// 查询内存要求
+	uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
 
 private:
@@ -168,6 +171,10 @@ private:
 	std::vector<VkSemaphore> renderFinishedSemaphores;
 	// 栅栏
 	std::vector<VkFence> inFlightFences;
+
+	// 顶点缓冲区
+	VkBuffer vertexBuffer;
+	VkDeviceMemory vertexBufferMemory;
 
 public:
 	bool framebufferResized = false;
