@@ -138,6 +138,25 @@ private:
 	//更新描述符数据
 	void updateUniformBuffer(uint32_t currentImage);
 
+	//创建纹理贴图
+	void createTextureImage();
+	//创建图像
+	void createImage(uint32_t width, 
+		uint32_t height, 
+		VkFormat format, 
+		VkImageTiling tiling, 
+		VkImageUsageFlags usage, 
+		VkMemoryPropertyFlags properties, 
+		VkImage& image, 
+		VkDeviceMemory& imageMemory);
+	//图像的布局转换
+	void transitionImageLayout(VkImage image, 
+		VkFormat format, 
+		VkImageLayout oldLayout, 
+		VkImageLayout newLayout);
+
+	// 将缓冲区复制到图像
+	void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 
 	//验证层是否可用
 	bool checkValidationLayerSupport();
@@ -160,7 +179,9 @@ private:
 	// 查询内存要求
 	uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
-
+	//辅助函数
+	VkCommandBuffer beginSingleTimeCommands();
+	void endSingleTimeCommands(VkCommandBuffer commandBuffer);
 private:
 	GLFWwindow* window;
 
@@ -218,6 +239,10 @@ private:
 
 	VkDescriptorPool descriptorPool;
 	std::vector<VkDescriptorSet> descriptorSets;
+
+	//纹理图像
+	VkImage textureImage;
+	VkDeviceMemory textureImageMemory;
 public:
 	bool framebufferResized = false;
 
