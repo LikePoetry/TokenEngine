@@ -109,6 +109,15 @@ private:
 	void createSyncObjects();
 	//创建顶点缓冲
 	void createVertexBuffer();
+	//缓冲区的创建
+	void createBuffer(VkDeviceSize size,
+		VkBufferUsageFlags usage,
+		VkMemoryPropertyFlags properties,
+		VkBuffer& buffer,
+		VkDeviceMemory& bufferMemory);
+	// 缓冲区的复制
+	void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+
 
 	//验证层是否可用
 	bool checkValidationLayerSupport();
