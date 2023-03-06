@@ -32,7 +32,7 @@ static std::vector<char> readFile(const std::string& filename)
 	return buffer;
 }
 
-static void framebufferResizeCallback(GLFWwindow* window, int width, int height) 
+static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
 {
 	auto app = reinterpret_cast<Triangle*>(glfwGetWindowUserPointer(window));
 	app->framebufferResized = true;
@@ -92,6 +92,7 @@ void Triangle::initVulkan()
 
 	//用户输入
 	createVertexBuffer();
+	createIndexBuffer();
 
 	createCommandBuffers();
 	createSyncObjects();
@@ -341,7 +342,7 @@ void Triangle::createGraphicsPipeline()
 	vertexInputInfo.vertexBindingDescriptionCount = 1;
 	vertexInputInfo.pVertexBindingDescriptions = &bindingDescription; // Optional
 	vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
-	vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data(); 
+	vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
 	// 输入组件
 	VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
@@ -507,10 +508,10 @@ void Triangle::createVertexBuffer()
 	VkBuffer stagingBuffer;
 	VkDeviceMemory stagingBufferMemory;
 	//VK_BUFFER_USAGE_TRANSFER_SRC_BIT：缓冲区可以用作内存传输操作中的源。
-	createBuffer(bufferSize, 
-		VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
-		stagingBuffer, 
+	createBuffer(bufferSize,
+		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		stagingBuffer,
 		stagingBufferMemory);
 
 	void* data;
@@ -519,13 +520,37 @@ void Triangle::createVertexBuffer()
 	vkUnmapMemory(device, stagingBufferMemory);
 
 	//VK_BUFFER_USAGE_TRANSFER_DST_BIT：缓冲区可用作内存传输操作中的目标。
-	createBuffer(bufferSize, 
-		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 
-		vertexBuffer, 
+	createBuffer(bufferSize,
+		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		vertexBuffer,
 		vertexBufferMemory);
 	// 数据从暂存缓冲区复制到设备缓冲区
 	copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
+
+	vkDestroyBuffer(device, stagingBuffer, nullptr);
+	vkFreeMemory(device, stagingBufferMemory, nullptr);
+}
+
+/// <summary>
+/// 创建顶点索引缓冲区
+/// </summary>
+void Triangle::createIndexBuffer()
+{
+	VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
+
+	VkBuffer stagingBuffer;
+	VkDeviceMemory stagingBufferMemory;
+	createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+
+	void* data;
+	vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+	memcpy(data, indices.data(), (size_t)bufferSize);
+	vkUnmapMemory(device, stagingBufferMemory);
+
+	createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer, indexBufferMemory);
+
+	copyBuffer(stagingBuffer, indexBuffer, bufferSize);
 
 	vkDestroyBuffer(device, stagingBuffer, nullptr);
 	vkFreeMemory(device, stagingBufferMemory, nullptr);
@@ -582,9 +607,9 @@ void Triangle::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize s
 /// <param name="buffer"></param>
 /// <param name="bufferMemory"></param>
 void Triangle::createBuffer(VkDeviceSize size,
-	VkBufferUsageFlags usage, 
-	VkMemoryPropertyFlags properties, 
-	VkBuffer& buffer, 
+	VkBufferUsageFlags usage,
+	VkMemoryPropertyFlags properties,
+	VkBuffer& buffer,
 	VkDeviceMemory& bufferMemory)
 {
 	VkBufferCreateInfo bufferInfo{};
@@ -697,8 +722,10 @@ void Triangle::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
 	VkBuffer vertexBuffers[] = { vertexBuffer };
 	VkDeviceSize offsets[] = { 0 };
 	vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+
+	vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
 	//	顶点缓冲区绘图
-	vkCmdDraw(commandBuffer, static_cast<uint32_t>(vertices.size()), 1, 0, 0);
+	vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 
 	vkCmdEndRenderPass(commandBuffer);
 
@@ -1155,6 +1182,9 @@ void Triangle::cleanUp()
 	vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
 	// 渲染通道
 	vkDestroyRenderPass(device, renderPass, nullptr);
+
+	vkDestroyBuffer(device, indexBuffer, nullptr);
+	vkFreeMemory(device, indexBufferMemory, nullptr);
 
 	// 清理顶点缓冲区
 	vkDestroyBuffer(device, vertexBuffer, nullptr);

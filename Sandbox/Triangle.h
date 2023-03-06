@@ -109,6 +109,8 @@ private:
 	void createSyncObjects();
 	//创建顶点缓冲
 	void createVertexBuffer();
+	//创建顶点索引缓冲区
+	void createIndexBuffer();
 	//缓冲区的创建
 	void createBuffer(VkDeviceSize size,
 		VkBufferUsageFlags usage,
@@ -185,6 +187,10 @@ private:
 	VkBuffer vertexBuffer;
 	VkDeviceMemory vertexBufferMemory;
 
+	// 顶点索引缓冲区
+	VkBuffer indexBuffer;
+	VkDeviceMemory indexBufferMemory;
+
 public:
 	bool framebufferResized = false;
 
@@ -207,10 +213,16 @@ private:
 	// 用于同时渲染多个帧
 	uint32_t currentFrame = 0;
 
+	// 顶点信息
 	const std::vector<Vertex> vertices = {
-	{{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-	{{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
-	{{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+	 {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+	{{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+	{{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+	{{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}
 	};
 
+	// 顶点索引信息
+	const std::vector<uint16_t> indices = {
+	0, 1, 2, 2, 3, 0
+	};
 };
