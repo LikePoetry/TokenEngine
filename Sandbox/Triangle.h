@@ -150,7 +150,7 @@ private:
 	void createIndexBuffer();
 	// 创建统一描述符缓冲区
 	void createUniformBuffers();
-	
+
 	//缓冲区的创建
 	void createBuffer(VkDeviceSize size,
 		VkBufferUsageFlags usage,
@@ -175,27 +175,28 @@ private:
 	//创建纹理采样器
 	void createTextureSampler();
 
-	VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
-
+	VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels);
+	void generateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels);
 	//创建纹理图像视图
 	void createTextureImageView();
 	//创建深度图像和视图
 	void createDepthResources();
 
 	//创建图像
-	void createImage(uint32_t width, 
-		uint32_t height, 
-		VkFormat format, 
-		VkImageTiling tiling, 
-		VkImageUsageFlags usage, 
-		VkMemoryPropertyFlags properties, 
-		VkImage& image, 
+	void createImage(uint32_t width,
+		uint32_t height,
+		uint32_t mipLevels,
+		VkFormat format,
+		VkImageTiling tiling,
+		VkImageUsageFlags usage,
+		VkMemoryPropertyFlags properties,
+		VkImage& image,
 		VkDeviceMemory& imageMemory);
 	//图像的布局转换
-	void transitionImageLayout(VkImage image, 
-		VkFormat format, 
-		VkImageLayout oldLayout, 
-		VkImageLayout newLayout);
+	void transitionImageLayout(VkImage image,
+		VkFormat format,
+		VkImageLayout oldLayout,
+		VkImageLayout newLayout, uint32_t mipLevels);
 
 	// 将缓冲区复制到图像
 	void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
@@ -228,9 +229,12 @@ private:
 	//用于深度视图的创建
 	VkFormat findDepthFormat();
 
-	VkFormat findSupportedFormat(const std::vector<VkFormat>& candidates, 
-		VkImageTiling tiling, 
+	VkFormat findSupportedFormat(const std::vector<VkFormat>& candidates,
+		VkImageTiling tiling,
 		VkFormatFeatureFlags features);
+
+	//获得最大多重采样数量
+	VkSampleCountFlagBits getMaxUsableSampleCount();
 private:
 	GLFWwindow* window;
 
@@ -289,6 +293,7 @@ private:
 	VkDescriptorPool descriptorPool;
 	std::vector<VkDescriptorSet> descriptorSets;
 
+	uint32_t mipLevels;
 	//纹理图像
 	VkImage textureImage;
 	VkDeviceMemory textureImageMemory;
@@ -347,4 +352,10 @@ private:
 
 	const std::string MODEL_PATH = "../models/viking_room.obj";
 	const std::string TEXTURE_PATH = "../textures/viking_room.png";
+
+	//const std::string MODEL_PATH = "../models/Capsule.obj";
+	//const std::string TEXTURE_PATH = "../textures/Capsule.jpg";
+
+	// 多重采样
+	VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT;
 };
