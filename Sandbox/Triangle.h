@@ -140,6 +140,14 @@ private:
 
 	//创建纹理贴图
 	void createTextureImage();
+	//创建纹理采样器
+	void createTextureSampler();
+
+	VkImageView createImageView(VkImage image, VkFormat format);
+
+	//创建纹理图像视图
+	void createTextureImageView();
+
 	//创建图像
 	void createImage(uint32_t width, 
 		uint32_t height, 
@@ -243,6 +251,10 @@ private:
 	//纹理图像
 	VkImage textureImage;
 	VkDeviceMemory textureImageMemory;
+	// 纹理图像视图
+	VkImageView textureImageView;
+	// 纹理采样
+	VkSampler textureSampler;
 public:
 	bool framebufferResized = false;
 

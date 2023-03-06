@@ -106,7 +106,8 @@ void Triangle::initVulkan()
 
 	// 创建纹理贴图
 	createTextureImage();
-
+	createTextureImageView();
+	createTextureSampler();
 	//用户输入
 	createVertexBuffer();
 	createIndexBuffer();
@@ -519,10 +520,10 @@ void Triangle::createTextureImage()
 	VkBuffer stagingBuffer;
 	VkDeviceMemory stagingBufferMemory;
 
-	createBuffer(imageSize, 
-		VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
-		stagingBuffer, 
+	createBuffer(imageSize,
+		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		stagingBuffer,
 		stagingBufferMemory);
 
 	void* data;
@@ -532,13 +533,13 @@ void Triangle::createTextureImage()
 
 	stbi_image_free(pixels);
 
-	createImage(texWidth, 
-		texHeight, 
-		VK_FORMAT_R8G8B8A8_SRGB, 
-		VK_IMAGE_TILING_OPTIMAL, 
-		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, 
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 
-		textureImage, 
+	createImage(texWidth,
+		texHeight,
+		VK_FORMAT_R8G8B8A8_SRGB,
+		VK_IMAGE_TILING_OPTIMAL,
+		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		textureImage,
 		textureImageMemory);
 
 	transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -547,6 +548,69 @@ void Triangle::createTextureImage()
 
 	vkDestroyBuffer(device, stagingBuffer, nullptr);
 	vkFreeMemory(device, stagingBufferMemory, nullptr);
+}
+
+/// <summary>
+/// 创建纹理采样器
+/// </summary>
+void Triangle::createTextureSampler()
+{
+	VkPhysicalDeviceProperties properties{};
+	vkGetPhysicalDeviceProperties(physicalDevice, &properties);
+
+	VkSamplerCreateInfo samplerInfo{};
+	samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+	samplerInfo.magFilter = VK_FILTER_LINEAR;
+	samplerInfo.minFilter = VK_FILTER_LINEAR;
+	samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.anisotropyEnable = VK_TRUE;
+	samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+	samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+	samplerInfo.unnormalizedCoordinates = VK_FALSE;
+	samplerInfo.compareEnable = VK_FALSE;
+	samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+
+	if (vkCreateSampler(device, &samplerInfo, nullptr, &textureSampler) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create texture sampler!");
+	}
+}
+
+/// <summary>
+/// 创建纹理图像视图
+/// </summary>
+void Triangle::createTextureImageView()
+{
+	textureImageView = createImageView(textureImage, VK_FORMAT_R8G8B8A8_SRGB);
+}
+
+/// <summary>
+/// 创建图像视图
+/// </summary>
+/// <param name="image"></param>
+/// <param name="format"></param>
+/// <returns></returns>
+VkImageView Triangle::createImageView(VkImage image, VkFormat format)
+{
+	VkImageViewCreateInfo viewInfo{};
+	viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	viewInfo.image = image;
+	viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	viewInfo.format = format;
+	viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	viewInfo.subresourceRange.baseMipLevel = 0;
+	viewInfo.subresourceRange.levelCount = 1;
+	viewInfo.subresourceRange.baseArrayLayer = 0;
+	viewInfo.subresourceRange.layerCount = 1;
+
+	VkImageView imageView;
+	if (vkCreateImageView(device, &viewInfo, nullptr, &imageView) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create texture image view!");
+	}
+
+	return imageView;
 }
 
 /// <summary>
@@ -560,13 +624,13 @@ void Triangle::createTextureImage()
 /// <param name="properties"></param>
 /// <param name="image"></param>
 /// <param name="imageMemory"></param>
-void Triangle::createImage(uint32_t width, 
-	uint32_t height, 
-	VkFormat format, 
-	VkImageTiling tiling, 
-	VkImageUsageFlags usage, 
-	VkMemoryPropertyFlags properties, 
-	VkImage& image, 
+void Triangle::createImage(uint32_t width,
+	uint32_t height,
+	VkFormat format,
+	VkImageTiling tiling,
+	VkImageUsageFlags usage,
+	VkMemoryPropertyFlags properties,
+	VkImage& image,
 	VkDeviceMemory& imageMemory)
 {
 	VkImageCreateInfo imageInfo{};
@@ -700,7 +764,7 @@ void Triangle::transitionImageLayout(VkImage image, VkFormat format, VkImageLayo
 /// <param name="image"></param>
 /// <param name="width"></param>
 /// <param name="height"></param>
-void Triangle::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) 
+void Triangle::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height)
 {
 	VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 
@@ -1157,27 +1221,7 @@ void Triangle::createImageViews()
 	swapChainImageViews.resize(swapChainImages.size());
 	for (size_t i = 0; i < swapChainImages.size(); i++)
 	{
-		VkImageViewCreateInfo createInfo{};
-		createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-		createInfo.image = swapChainImages[i];
-
-		createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-		createInfo.format = swapChainImageFormat;
-
-		createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-		createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-		createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-		createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-
-		createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		createInfo.subresourceRange.baseMipLevel = 0;
-		createInfo.subresourceRange.levelCount = 1;
-		createInfo.subresourceRange.baseArrayLayer = 0;
-		createInfo.subresourceRange.layerCount = 1;
-
-		if (vkCreateImageView(device, &createInfo, nullptr, &swapChainImageViews[i]) != VK_SUCCESS) {
-			throw std::runtime_error("failed to create image views!");
-		}
+		swapChainImageViews[i] = createImageView(swapChainImages[i], swapChainImageFormat);
 	}
 }
 
@@ -1305,7 +1349,13 @@ bool Triangle::isDeviceSuitable(VkPhysicalDevice device)
 		swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
 	}
 
-	return indices.isComplete() && extensionsSupported && swapChainAdequate;
+	VkPhysicalDeviceFeatures supportedFeatures;
+	vkGetPhysicalDeviceFeatures(device, &supportedFeatures);
+
+	return indices.isComplete() &&
+		extensionsSupported &&
+		swapChainAdequate &&
+		supportedFeatures.samplerAnisotropy;
 }
 
 bool Triangle::checkDeviceExtensionSupport(VkPhysicalDevice device)
@@ -1454,7 +1504,10 @@ void Triangle::cleanUp()
 {
 	//旧的交换链清理
 	cleanupSwapChain();
-
+	//清理纹理采样
+	vkDestroySampler(device, textureSampler, nullptr);
+	//清理纹理图像视图
+	vkDestroyImageView(device, textureImageView, nullptr);
 	// 清理纹理图像
 	vkDestroyImage(device, textureImage, nullptr);
 	vkFreeMemory(device, textureImageMemory, nullptr);
