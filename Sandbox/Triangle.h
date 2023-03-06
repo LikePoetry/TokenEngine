@@ -11,7 +11,12 @@
 #include <glm/glm.hpp>
 #include <array>
 
-
+struct UniformBufferObject
+{
+	alignas(16) glm::mat4 model;
+	alignas(16) glm::mat4 view;
+	alignas(16) glm::mat4 proj;
+};
 
 // 顶点数据结构体
 struct Vertex
@@ -111,6 +116,9 @@ private:
 	void createVertexBuffer();
 	//创建顶点索引缓冲区
 	void createIndexBuffer();
+	// 创建统一描述符缓冲区
+	void createUniformBuffers();
+	
 	//缓冲区的创建
 	void createBuffer(VkDeviceSize size,
 		VkBufferUsageFlags usage,
@@ -119,6 +127,16 @@ private:
 		VkDeviceMemory& bufferMemory);
 	// 缓冲区的复制
 	void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+
+	//创建描述符池
+	void createDescriptorPool();
+	//创建描述符布局
+	void createDescriptorSetLayout();
+	//创建描述符集
+	void createDescriptorSets();
+
+	//更新描述符数据
+	void updateUniformBuffer(uint32_t currentImage);
 
 
 	//验证层是否可用
@@ -166,6 +184,8 @@ private:
 
 	//	渲染通道
 	VkRenderPass renderPass;
+	// 描述符布局
+	VkDescriptorSetLayout descriptorSetLayout;
 	// 渲染管线布局
 	VkPipelineLayout pipelineLayout;
 	// 图形管线
@@ -191,6 +211,13 @@ private:
 	VkBuffer indexBuffer;
 	VkDeviceMemory indexBufferMemory;
 
+	// 描述符缓冲区
+	std::vector<VkBuffer> uniformBuffers;
+	std::vector<VkDeviceMemory> uniformBuffersMemory;
+	std::vector<void*> uniformBuffersMapped;
+
+	VkDescriptorPool descriptorPool;
+	std::vector<VkDescriptorSet> descriptorSets;
 public:
 	bool framebufferResized = false;
 
