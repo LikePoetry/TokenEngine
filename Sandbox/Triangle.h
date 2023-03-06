@@ -181,11 +181,14 @@ private:
 	void createTextureImageView();
 	//创建深度图像和视图
 	void createDepthResources();
+	//创建多重采样资源
+	void createColorResources();
 
 	//创建图像
 	void createImage(uint32_t width,
 		uint32_t height,
 		uint32_t mipLevels,
+		VkSampleCountFlagBits numSamples,
 		VkFormat format,
 		VkImageTiling tiling,
 		VkImageUsageFlags usage,
@@ -301,6 +304,11 @@ private:
 	VkImageView textureImageView;
 	// 纹理采样
 	VkSampler textureSampler;
+
+	//多重采样
+	VkImage colorImage;
+	VkDeviceMemory colorImageMemory;
+	VkImageView colorImageView;
 
 	// 深度缓冲相关
 	VkImage depthImage;
