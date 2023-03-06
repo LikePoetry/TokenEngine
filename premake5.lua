@@ -53,6 +53,7 @@ includedirs
     "%{IncludeDir.glm}",
     "%{IncludeDir.imgui}",
     "%{IncludeDir.stb}",
+    "%{IncludeDir.tinyobjloader}",
     "%{IncludeDir.ImGuizmo}"
 
 }

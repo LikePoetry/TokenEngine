@@ -59,7 +59,7 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>.;..\vendor\spdlog\include;..\vendor\GLFW\include;%VULKAN_SDK%\include;..\vendor\glm;..\vendor\imgui;..\vendor\stb;..\vendor\ImGuizmo;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;..\vendor\spdlog\include;..\vendor\GLFW\include;%VULKAN_SDK%\include;..\vendor\glm;..\vendor\imgui;..\vendor\stb;..\vendor\tinyobjloader;..\vendor\ImGuizmo;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -78,7 +78,7 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>.;..\vendor\spdlog\include;..\vendor\GLFW\include;%VULKAN_SDK%\include;..\vendor\glm;..\vendor\imgui;..\vendor\stb;..\vendor\ImGuizmo;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;..\vendor\spdlog\include;..\vendor\GLFW\include;%VULKAN_SDK%\include;..\vendor\glm;..\vendor\imgui;..\vendor\stb;..\vendor\tinyobjloader;..\vendor\ImGuizmo;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>Full</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
