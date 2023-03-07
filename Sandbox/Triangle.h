@@ -375,7 +375,10 @@ private:
 public:
 	void initImgui();
 	void resetImgui();
+	void createImGuiRenderPass();
 	void createImGuiFramebuffers();
+	void imguiRender();
+	void clearImgui();
 
 	VkDescriptorPool g_DescriptorPool;
 	VkRenderPass g_Renderpass;

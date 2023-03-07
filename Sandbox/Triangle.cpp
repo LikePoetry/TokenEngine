@@ -1349,11 +1349,13 @@ void Triangle::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
 {
 	VkCommandBufferBeginInfo beginInfo{};
 	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	beginInfo.pNext = NULL;
+	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+	beginInfo.pInheritanceInfo = NULL;
 
 	if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
 		throw std::runtime_error("failed to begin recording command buffer!");
 	}
-
 
 	{
 		// 绘制原来的图像数据
@@ -1395,30 +1397,30 @@ void Triangle::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
 
 		//vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
 		vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-
-
 		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
-
 		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 
 		vkCmdEndRenderPass(commandBuffer);
 	}
+
 	// 绘制Imgui
 	{
-		VkRenderPassBeginInfo renderPassInfo = {};
-		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		renderPassInfo.renderPass = g_Renderpass;
-		renderPassInfo.framebuffer = g_Framebuffers[imageIndex];
-		renderPassInfo.renderArea.offset = { 0, 0 };
-		renderPassInfo.renderArea.extent = swapChainExtent;
-		VkClearValue clearColor = { 0.0f, 0.0f, 0.0f, 1.0f };
-		renderPassInfo.clearValueCount = 1;
-		renderPassInfo.pClearValues = &clearColor;
-		vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+		VkRenderPassBeginInfo g_renderPassInfo = {};
+		g_renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+		g_renderPassInfo.renderPass = g_Renderpass;
+		g_renderPassInfo.framebuffer = g_Framebuffers[imageIndex];
+		g_renderPassInfo.renderArea.offset = { 0, 0 };
+		g_renderPassInfo.renderArea.extent = swapChainExtent;
+		VkClearValue g_clearColor = { 0.0f, 0.0f, 0.0f, 1.0f };
+		g_renderPassInfo.clearValueCount = 1;
+		g_renderPassInfo.pClearValues = &g_clearColor;
+		vkCmdBeginRenderPass(commandBuffer, &g_renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
 		// Record dear imgui primitives into command buffer
 		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
 		vkCmdEndRenderPass(commandBuffer);
 	}
+
 
 	if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
 		throw std::runtime_error("failed to record command buffer!");
@@ -1450,6 +1452,7 @@ void Triangle::drawFrame()
 		throw std::runtime_error("failed to acquire swap chain image!");
 	}
 
+	imguiRender();
 	updateUniformBuffer(currentFrame);
 
 	vkResetFences(device, 1, &inFlightFences[currentFrame]);
@@ -1849,17 +1852,6 @@ void Triangle::mainLoop()
 	while (!glfwWindowShouldClose(window))
 	{
 		glfwPollEvents();
-
-
-		ImGui_ImplVulkan_NewFrame();
-		ImGui_ImplGlfw_NewFrame();
-		ImGui::NewFrame();
-
-		static bool show_demo_window = true;
-		ImGui::ShowDemoWindow(&show_demo_window);
-		ImGui::Render();
-
-
 		drawFrame();
 	}
 
@@ -1871,6 +1863,7 @@ void Triangle::mainLoop()
 /// </summary>
 void Triangle::cleanUp()
 {
+	clearImgui();
 	//旧的交换链清理
 	cleanupSwapChain();
 	//清理纹理采样
@@ -1934,12 +1927,19 @@ void Triangle::initImgui()
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
+	//io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
 	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
 	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 
 	// Setup Dear ImGui style
 	ImGui::StyleColorsDark();
 	//ImGui::StyleColorsClassic();
+	ImGuiStyle& style = ImGui::GetStyle();
+	if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+	{
+		style.WindowRounding = 0.0f;
+		style.Colors[ImGuiCol_WindowBg].w = 1.0f;
+	}
 
 	//将引擎的相关部分暴露给 Dear ImGui
 	// Setup Platform/Renderer bindings
@@ -1985,35 +1985,43 @@ void Triangle::initImgui()
 	init_info.ImageCount = swapChainImages.size();
 	init_info.CheckVkResultFn = NULL;
 
+	createImGuiRenderPass();
+	// 非侵入式的方式初始化 Vulkan;
+	ImGui_ImplVulkan_Init(&init_info, g_Renderpass);
 
+	VkCommandBuffer command_buffer = beginSingleTimeCommands();
+	ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
+	endSingleTimeCommands(command_buffer);
+	ImGui_ImplVulkan_DestroyFontUploadObjects();
+	createImGuiFramebuffers();
+}
+
+void Triangle::createImGuiRenderPass()
+{
 	//创建 Renderpass
 	VkAttachmentDescription attachment = {};
 	attachment.format = swapChainImageFormat;
 	attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-	attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	attachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 	attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	attachment.initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 	attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
 	VkAttachmentReference color_attachment = {};
 	color_attachment.attachment = 0;
 	color_attachment.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
 	VkSubpassDescription subpass = {};
 	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 	subpass.colorAttachmentCount = 1;
 	subpass.pColorAttachments = &color_attachment;
-
 	VkSubpassDependency dependency = {};
 	dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
 	dependency.dstSubpass = 0;
 	dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 	dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	dependency.srcAccessMask = 0;  // or VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	dependency.srcAccessMask = 0;
 	dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-
 	VkRenderPassCreateInfo info = {};
 	info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
 	info.attachmentCount = 1;
@@ -2025,20 +2033,22 @@ void Triangle::initImgui()
 	if (vkCreateRenderPass(device, &info, nullptr, &g_Renderpass) != VK_SUCCESS) {
 		throw std::runtime_error("Could not create Dear ImGui's render pass");
 	}
-
-	// 非侵入式的方式初始化 Vulkan;
-	ImGui_ImplVulkan_Init(&init_info, g_Renderpass);
-
-	VkCommandBuffer command_buffer = beginSingleTimeCommands();
-	ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
-	endSingleTimeCommands(command_buffer);
-
-	createImGuiFramebuffers();
 }
 
 void Triangle::resetImgui()
 {
+	for (size_t i = 0; i < g_Framebuffers.size(); i++)
+	{
+		vkDestroyFramebuffer(device, g_Framebuffers[i], nullptr);
+	}
+	vkDestroyRenderPass(device, g_Renderpass, nullptr);
+
+	// We also need to take care of the UI
 	ImGui_ImplVulkan_SetMinImageCount(MAX_FRAMES_IN_FLIGHT);
+
+	createImGuiRenderPass();
+	createImGuiFramebuffers();
+
 }
 
 void Triangle::createImGuiFramebuffers()
@@ -2064,4 +2074,40 @@ void Triangle::createImGuiFramebuffers()
 			throw std::runtime_error("failed to create framebuffer!");
 		}
 	}
+}
+
+/// <summary>
+/// 清除 ImGui渲染相关代码
+/// </summary>
+void Triangle::clearImgui()
+{
+	ImGui_ImplVulkan_Shutdown();
+	ImGui_ImplGlfw_Shutdown();
+	ImGui::DestroyContext();
+
+	for (size_t i = 0; i < g_Framebuffers.size(); i++)
+	{
+		vkDestroyFramebuffer(device, g_Framebuffers[i], nullptr);
+	}
+
+	vkDestroyRenderPass(device, g_Renderpass, nullptr);
+	vkDestroyDescriptorPool(device, g_DescriptorPool, nullptr);
+}
+
+void Triangle::imguiRender()
+{
+	ImGui_ImplVulkan_NewFrame();
+	ImGui_ImplGlfw_NewFrame();
+	ImGui::NewFrame();
+
+	static bool show_demo_window = true;
+	ImGui::ShowDemoWindow(&show_demo_window);
+	ImGui::Render();
+
+	//ImGuiIO& io = ImGui::GetIO(); (void)io;
+	//if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+	//{
+	//	ImGui::UpdatePlatformWindows();
+	//	ImGui::RenderPlatformWindowsDefault();
+	//}
 }
