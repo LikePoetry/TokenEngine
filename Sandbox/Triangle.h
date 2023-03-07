@@ -2,6 +2,10 @@
 
 #pragma once
 
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_vulkan.h"
+
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
@@ -366,4 +370,14 @@ private:
 
 	// 多重采样
 	VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT;
+
+
+public:
+	void initImgui();
+	void resetImgui();
+	void createImGuiFramebuffers();
+
+	VkDescriptorPool g_DescriptorPool;
+	VkRenderPass g_Renderpass;
+	std::vector<VkFramebuffer> g_Framebuffers;
 };
