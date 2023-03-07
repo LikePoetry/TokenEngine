@@ -1516,11 +1516,11 @@ void Triangle::updateUniformBuffer(uint32_t currentImage)
 
 	auto currentTime = std::chrono::high_resolution_clock::now();
 	float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
-
+	time = 1.0;
 	UniformBufferObject ubo{};
-	ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
+	ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));// 模型矩阵，模型在 3d空间中的位置;
+	ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));// 相机的 position,targetPosition, yaw,roll,pitch
+	ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);//设置相机 Fov, width,height,near,far;
 	ubo.proj[1][1] *= -1;
 
 	memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
@@ -2102,6 +2102,26 @@ void Triangle::imguiRender()
 
 	static bool show_demo_window = true;
 	ImGui::ShowDemoWindow(&show_demo_window);
+
+	bool showInspctor = true;
+	ImGui::Begin("Inspactor", &showInspctor);
+	ImGui::TextColored(ImVec4(1, 1, 0, 1), "Transform");
+	ImGui::BeginChild("Transform");
+	ImGui::TextColored(ImVec4(1, 0, 0, 1), "X");
+	ImGui::SameLine();
+	float re = 1.0f;
+	float rd = 1.0f;
+	float rm = 1.0f;
+	ImGui::InputFloat("##no_label", &re);
+	ImGui::SameLine();
+	ImGui::TextColored(ImVec4(0, 1, 0, 1), "Y");
+	ImGui::SameLine();
+	ImGui::InputFloat("##no_label", &re);
+	ImGui::SameLine();
+	ImGui::TextColored(ImVec4(0, 0, 1, 1), "Z");
+	ImGui::EndChild();
+	ImGui::End();
+
 	ImGui::Render();
 
 	//ImGuiIO& io = ImGui::GetIO(); (void)io;
