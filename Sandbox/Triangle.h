@@ -22,7 +22,19 @@
 
 #include <array>
 
+		/// Return the smaller of two values.
+template <class T, class U>
+inline T Min(T lhs, U rhs)
+{
+	return lhs < rhs ? lhs : rhs;
+}
 
+/// Return the larger of two values.
+template <class T, class U>
+inline T Max(T lhs, U rhs)
+{
+	return lhs > rhs ? lhs : rhs;
+}
 
 struct UniformBufferObject
 {
@@ -383,4 +395,27 @@ public:
 	VkDescriptorPool g_DescriptorPool;
 	VkRenderPass g_Renderpass;
 	std::vector<VkFramebuffer> g_Framebuffers;
+
+	// Imgui ¿Ø¼þ»æÖÆ
+public:
+	bool PorpertyTransform(const std::string& name, glm::vec3& vector, float width);
+	void SetLocalMatrix();
+	void cameraMove(float time);
+
+public:
+	glm::mat4 m_LocalMatrix = glm::mat4(1);
+
+	glm::vec3 m_Position = glm::vec3(0);
+	glm::vec3 m_Rotation = glm::vec3(0);
+	glm::vec3 m_Scale = glm::vec3(1);
+
+	//glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f)
+	glm::vec3 mCamera_Position = glm::vec3(0.0f, 0.0f, 3.0f);
+	glm::vec3 mCamera_Target = glm::vec3(0.0f, 0.0f, -1.0f);
+	glm::vec3 mCamera_Up = glm::vec3(0.0f, 1.0f, 0.0f);
+
+
+	float m_aspect = 45.0f;
+
+	bool keys[1024];
 };

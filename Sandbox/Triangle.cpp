@@ -19,11 +19,18 @@
 #include <fstream>
 #include <chrono>
 
+#include <memory>
+
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tiny_obj_loader.h>
+
+#include <imgui_internal.h>
+
+#include <glm/gtx/matrix_decompose.hpp>
+#include <glm/ext.hpp>
 
 static std::vector<char> readFile(const std::string& filename)
 {
@@ -50,9 +57,41 @@ static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
 	app->framebufferResized = true;
 }
 
+static void scrollCallback(GLFWwindow* window, double xOffset, double yOffset)
+{
+	auto app = reinterpret_cast<Triangle*>(glfwGetWindowUserPointer(window));
+	if (app->m_aspect >= 0.1f && app->m_aspect <= 179.0f)
+	{
+		app->m_aspect -= yOffset;
+	}
+
+	if (app->m_aspect <= 0.1f)
+	{
+		app->m_aspect = 0.10f;
+	}
+
+	if (app->m_aspect >= 179.0f)
+	{
+		app->m_aspect = 179.0f;
+	}
+}
+
+static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mode)
+{
+	auto app = reinterpret_cast<Triangle*>(glfwGetWindowUserPointer(window));
+	if (action == GLFW_PRESS)
+	{
+		app->keys[key] = true;
+	}
+	else if (action == GLFW_RELEASE)
+	{
+		app->keys[key] = false;
+	}
+}
+
 Triangle::Triangle()
 {
-
+	memset(keys, false, sizeof(keys));
 }
 
 Triangle::~Triangle()
@@ -81,6 +120,8 @@ void Triangle::initWindow()
 	//指定UserPointer;
 	glfwSetWindowUserPointer(window, this);
 	glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
+	glfwSetScrollCallback(window, scrollCallback);
+	glfwSetKeyCallback(window, keyCallback);
 }
 
 /// <summary>
@@ -1516,11 +1557,13 @@ void Triangle::updateUniformBuffer(uint32_t currentImage)
 
 	auto currentTime = std::chrono::high_resolution_clock::now();
 	float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
-	time = 1.0;
+
+	cameraMove(time);
+
 	UniformBufferObject ubo{};
-	ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));// 模型矩阵，模型在 3d空间中的位置;
-	ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));// 相机的 position,targetPosition, yaw,roll,pitch
-	ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);//设置相机 Fov, width,height,near,far;
+	ubo.model = m_LocalMatrix;// 模型矩阵，模型在 3d空间中的位置;
+	ubo.view = glm::lookAt(mCamera_Position, mCamera_Position + mCamera_Target, mCamera_Up);// 相机的 position,targetPosition, yaw,roll,pitch
+	ubo.proj = glm::perspective(glm::radians(m_aspect), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 100.0f);//设置相机 Fov, width,height,near,far;
 	ubo.proj[1][1] *= -1;
 
 	memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
@@ -1931,10 +1974,12 @@ void Triangle::initImgui()
 	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
 	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 
+
 	// Setup Dear ImGui style
-	ImGui::StyleColorsDark();
 	//ImGui::StyleColorsClassic();
 	ImGuiStyle& style = ImGui::GetStyle();
+	ImGui::StyleColorsDark();
+
 	if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
 	{
 		style.WindowRounding = 0.0f;
@@ -2100,34 +2145,128 @@ void Triangle::imguiRender()
 	ImGui_ImplGlfw_NewFrame();
 	ImGui::NewFrame();
 
-	static bool show_demo_window = true;
-	ImGui::ShowDemoWindow(&show_demo_window);
+	//static bool show_demo_window = false;
+	//ImGui::ShowDemoWindow(&show_demo_window);
 
+	float itemWidth = (ImGui::GetContentRegionAvail().x - (ImGui::GetFontSize() * 3.0f)) / 3.0f;
 	bool showInspctor = true;
 	ImGui::Begin("Inspactor", &showInspctor);
 	ImGui::TextColored(ImVec4(1, 1, 0, 1), "Transform");
-	ImGui::BeginChild("Transform");
-	ImGui::TextColored(ImVec4(1, 0, 0, 1), "X");
+	ImGui::AlignTextToFramePadding();
+
+	PorpertyTransform("Position", m_Position, itemWidth);
+
 	ImGui::SameLine();
-	float re = 1.0f;
-	float rd = 1.0f;
-	float rm = 1.0f;
-	ImGui::InputFloat("##no_label", &re);
+	PorpertyTransform("Rotation", m_Rotation, itemWidth);
 	ImGui::SameLine();
-	ImGui::TextColored(ImVec4(0, 1, 0, 1), "Y");
+	PorpertyTransform("Scale", m_Scale, itemWidth);
+
+	ImGui::Columns(1);
+	ImGui::Separator();
+
+	ImGui::TextColored(ImVec4(1, 1, 0, 1), "Camera");
+	ImGui::AlignTextToFramePadding();
+
+	PorpertyTransform("Position", mCamera_Position, itemWidth);
+
 	ImGui::SameLine();
-	ImGui::InputFloat("##no_label", &re);
+	PorpertyTransform("Traget", mCamera_Target, itemWidth);
 	ImGui::SameLine();
-	ImGui::TextColored(ImVec4(0, 0, 1, 1), "Z");
-	ImGui::EndChild();
+	PorpertyTransform("Up", mCamera_Up, itemWidth);
+
+	ImGui::Columns(1);
+	ImGui::Separator();
 	ImGui::End();
 
 	ImGui::Render();
-
+	SetLocalMatrix();
 	//ImGuiIO& io = ImGui::GetIO(); (void)io;
 	//if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
 	//{
 	//	ImGui::UpdatePlatformWindows();
 	//	ImGui::RenderPlatformWindowsDefault();
 	//}
+}
+
+
+bool Triangle::PorpertyTransform(const std::string& name, glm::vec3& vector, float width)
+{
+	const float labelIndetation = ImGui::GetFontSize();
+	bool updated = false;
+
+	auto& style = ImGui::GetStyle();
+
+	const auto showFloat = [&](int axis, float* value)
+	{
+		const float label_float_spacing = ImGui::GetFontSize();
+		const float step = 0.01f;
+		const std::string format = "%.4f";
+
+		ImGui::AlignTextToFramePadding();
+		ImGui::TextUnformatted(axis == 0 ? "X" : axis == 1 ? "Y"
+			: "Z");
+		ImGui::SameLine(label_float_spacing);
+		ImVec2 pos_PostLabel = ImGui::GetCursorScreenPos();
+		glm::vec2 posPostLabel;
+		posPostLabel.x = pos_PostLabel.x;
+		posPostLabel.y = pos_PostLabel.y;
+		ImGui::PushItemWidth(width);
+		ImGui::PushID(static_cast<int>(ImGui::GetCursorPosX() + ImGui::GetCursorPosY()));
+
+		if (ImGui::InputFloat("##no_label", value, std::numeric_limits<float>::lowest(), std::numeric_limits<float>::max(), format.c_str()))
+			updated = true;
+
+		ImGui::PopID();
+		ImGui::PopItemWidth();
+
+		static const ImU32 colourX = IM_COL32(168, 46, 2, 255);
+		static const ImU32 colourY = IM_COL32(112, 162, 22, 255);
+		static const ImU32 colourZ = IM_COL32(51, 122, 210, 255);
+
+		const glm::vec2 size = glm::vec2(ImGui::GetFontSize() / 4.0f, ImGui::GetFontSize() + ImGui::GetStyle().FramePadding.y);
+		posPostLabel = posPostLabel + glm::vec2(-1.0f, ImGui::GetStyle().FramePadding.y / 2.0f);
+		ImRect axis_color_rect = ImRect(posPostLabel.x, posPostLabel.y, posPostLabel.x + size.x, posPostLabel.y + size.y);
+		ImGui::GetWindowDrawList()->AddRectFilled(axis_color_rect.Min, axis_color_rect.Max, axis == 0 ? colourX : axis == 1 ? colourY
+			: colourZ);
+	};
+
+	ImGui::BeginGroup();
+	ImGui::Indent(labelIndetation);
+	ImGui::TextUnformatted(name.c_str());
+	ImGui::Unindent(labelIndetation);
+	showFloat(0, &vector.x);
+	showFloat(1, &vector.y);
+	showFloat(2, &vector.z);
+	ImGui::EndGroup();
+
+	return updated;
+}
+
+void Triangle::SetLocalMatrix()
+{
+	float pitch = Min(m_Rotation.x, 89.9f);
+	pitch = Max(pitch, -89.9f);
+	m_LocalMatrix = glm::translate(glm::mat4(1.0), m_Position) * glm::toMat4(glm::quat(glm::radians(glm::vec3(pitch, m_Rotation.y, m_Rotation.z)))) * glm::scale(glm::mat4(1.0), m_Scale);
+}
+
+void Triangle::cameraMove(float time)
+{
+	float camerSpeed = 0.005f * time;
+
+	if (keys[GLFW_KEY_W])
+	{
+		mCamera_Position += camerSpeed * mCamera_Target;
+	}
+	if (keys[GLFW_KEY_S])
+	{
+		mCamera_Position -= camerSpeed * mCamera_Target;
+	}
+	if (keys[GLFW_KEY_A])
+	{
+		mCamera_Position -= glm::normalize(glm::cross(mCamera_Target, mCamera_Up)) * camerSpeed;
+	}
+	if (keys[GLFW_KEY_D])
+	{
+		mCamera_Position += glm::normalize(glm::cross(mCamera_Target, mCamera_Up)) * camerSpeed;
+	}
 }
