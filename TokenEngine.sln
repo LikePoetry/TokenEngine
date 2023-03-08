@@ -9,6 +9,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GLFW", "vendor\GLFW\GLFW.vc
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ImGui", "vendor\imgui\ImGui.vcxproj", "{C0FF640D-2C14-8DBE-F595-301E616989EF}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LittleVulkanEditor", "LittleVulkanEditor\LittleVulkanEditor.vcxproj", "{4BA2F226-3786-B37C-A0E6-ADCF8CE99DFE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -27,6 +29,10 @@ Global
 		{C0FF640D-2C14-8DBE-F595-301E616989EF}.Debug|x64.Build.0 = Debug|x64
 		{C0FF640D-2C14-8DBE-F595-301E616989EF}.Release|x64.ActiveCfg = Release|x64
 		{C0FF640D-2C14-8DBE-F595-301E616989EF}.Release|x64.Build.0 = Release|x64
+		{4BA2F226-3786-B37C-A0E6-ADCF8CE99DFE}.Debug|x64.ActiveCfg = Debug|x64
+		{4BA2F226-3786-B37C-A0E6-ADCF8CE99DFE}.Debug|x64.Build.0 = Debug|x64
+		{4BA2F226-3786-B37C-A0E6-ADCF8CE99DFE}.Release|x64.ActiveCfg = Release|x64
+		{4BA2F226-3786-B37C-A0E6-ADCF8CE99DFE}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

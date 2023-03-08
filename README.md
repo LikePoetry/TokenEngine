@@ -23,3 +23,8 @@ vendor 文件夹下内容<br>
 
 若安装的是VS2019 修改 Run_VS2022.bat文件，<br>
 替换<'''call Tools\premake5.exe vs2022'''> 为 <'''call Tools\premake5.exe vs2019'''><br>
+
+
+##  外部项目使用学习
+
+[Little Vulkan Engine]  (https://github.com/blurrypiano/littleVulkanEngine)
