@@ -29,6 +29,8 @@
 #include <glm/gtx/matrix_decompose.hpp>
 #include <glm/ext.hpp>
 
+#include "VulkanHelper.h"
+
 static std::vector<char> readFile(const std::string& filename)
 {
 	std::ifstream file(filename, std::ios::ate | std::ios::binary);
@@ -135,9 +137,7 @@ void Triangle::initVulkan()
 
 	//------创建渲染相关
 	createRenderPass();
-
 	createDescriptorSetLayout();
-
 	createGraphicsPipeline();
 
 	createColorResources();
@@ -159,6 +159,10 @@ void Triangle::initVulkan()
 
 	//创建描述符池
 	createDescriptorPool();
+
+	m_texture.SetTriangle(this);
+	m_texture1.SetTriangle(this);
+
 
 	//创建 Texture
 	m_texture.Load(TEXTURE_PATH.c_str());
@@ -419,25 +423,23 @@ void Triangle::createDescriptorSetLayout() {
 	uboLayoutBinding.pImmutableSamplers = nullptr;
 	uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
+	// 添加纹理采样器描述符集
 	VkDescriptorSetLayoutBinding samplerLayoutBinding{};
-	samplerLayoutBinding.binding = 0;
+	samplerLayoutBinding.binding = 1;
 	samplerLayoutBinding.descriptorCount = 1;
 	samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	samplerLayoutBinding.pImmutableSamplers = nullptr;
 	samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	std::array<VkDescriptorSetLayoutBinding, 2> bindings = { uboLayoutBinding, samplerLayoutBinding };
+
 	VkDescriptorSetLayoutCreateInfo layoutInfo{};
 	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	layoutInfo.bindingCount = 1;
-	layoutInfo.pBindings = &uboLayoutBinding;
+	layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
+	layoutInfo.pBindings = bindings.data();
 
-	if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &uniformDescriptorSetLayout) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create uniform descriptor set layout!");
-	}
-
-	layoutInfo.pBindings = &samplerLayoutBinding;
-
-	if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &textureDescriptorSetLayout) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create texture descriptor set layout!");
+	if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create descriptor set layout!");
 	}
 }
 
@@ -534,12 +536,11 @@ void Triangle::createGraphicsPipeline()
 	dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
 	dynamicState.pDynamicStates = dynamicStates.data();
 
-	VkDescriptorSetLayout setLayouts[] = { uniformDescriptorSetLayout, textureDescriptorSetLayout };
 
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
 	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	pipelineLayoutInfo.setLayoutCount = 2;
-	pipelineLayoutInfo.pSetLayouts = setLayouts;
+	pipelineLayoutInfo.setLayoutCount = 1;
+	pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
 
 	if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create pipeline layout!");
@@ -623,7 +624,7 @@ void Triangle::createDepthResources()
 {
 	VkFormat depthFormat = findDepthFormat();
 
-	createImage(swapChainExtent.width,
+	VulkanHelper::createImage(physicalDevice, device, swapChainExtent.width,
 		swapChainExtent.height, 1,
 		msaaSamples,
 		depthFormat,
@@ -632,7 +633,7 @@ void Triangle::createDepthResources()
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		depthImage,
 		depthImageMemory);
-	depthImageView = createImageView(depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
+	depthImageView = VulkanHelper::createImageView(device, depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
 }
 
 /// <summary>
@@ -642,7 +643,7 @@ void Triangle::createColorResources()
 {
 	VkFormat colorFormat = swapChainImageFormat;
 
-	createImage(swapChainExtent.width,
+	VulkanHelper::createImage(physicalDevice, device, swapChainExtent.width,
 		swapChainExtent.height,
 		1, msaaSamples, colorFormat,
 		VK_IMAGE_TILING_OPTIMAL,
@@ -650,7 +651,7 @@ void Triangle::createColorResources()
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		colorImage,
 		colorImageMemory);
-	colorImageView = createImageView(colorImage, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+	colorImageView = VulkanHelper::createImageView(device, colorImage, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
 }
 
 VkFormat Triangle::findDepthFormat()
@@ -790,7 +791,7 @@ void Triangle::capsule_createVertexBuffer()
 	VkBuffer stagingBuffer;
 	VkDeviceMemory stagingBufferMemory;
 	//VK_BUFFER_USAGE_TRANSFER_SRC_BIT：缓冲区可以用作内存传输操作中的源。
-	createBuffer(bufferSize,
+	VulkanHelper::createBuffer(physicalDevice, device, bufferSize,
 		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 		stagingBuffer,
@@ -802,13 +803,13 @@ void Triangle::capsule_createVertexBuffer()
 	vkUnmapMemory(device, stagingBufferMemory);
 
 	//VK_BUFFER_USAGE_TRANSFER_DST_BIT：缓冲区可用作内存传输操作中的目标。
-	createBuffer(bufferSize,
+	VulkanHelper::createBuffer(physicalDevice, device, bufferSize,
 		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		capsule_vertexBuffer,
 		capsule_vertexBufferMemory);
 	// 数据从暂存缓冲区复制到设备缓冲区
-	copyBuffer(stagingBuffer, capsule_vertexBuffer, bufferSize);
+	VulkanHelper::copyBuffer(device, commandPool, graphicsQueue, stagingBuffer, capsule_vertexBuffer, bufferSize);
 
 	vkDestroyBuffer(device, stagingBuffer, nullptr);
 	vkFreeMemory(device, stagingBufferMemory, nullptr);
@@ -823,16 +824,16 @@ void Triangle::capsule_createIndexBuffer()
 
 	VkBuffer stagingBuffer;
 	VkDeviceMemory stagingBufferMemory;
-	createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+	VulkanHelper::createBuffer(physicalDevice, device, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
 
 	void* data;
 	vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
 	memcpy(data, capsule_indices.data(), (size_t)bufferSize);
 	vkUnmapMemory(device, stagingBufferMemory);
 
-	createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, capsule_indexBuffer, capsule_indexBufferMemory);
+	VulkanHelper::createBuffer(physicalDevice, device, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, capsule_indexBuffer, capsule_indexBufferMemory);
 
-	copyBuffer(stagingBuffer, capsule_indexBuffer, bufferSize);
+	VulkanHelper::copyBuffer(device, commandPool, graphicsQueue, stagingBuffer, capsule_indexBuffer, bufferSize);
 
 	vkDestroyBuffer(device, stagingBuffer, nullptr);
 	vkFreeMemory(device, stagingBufferMemory, nullptr);
@@ -849,7 +850,7 @@ void Triangle::createVertexBuffer()
 	VkBuffer stagingBuffer;
 	VkDeviceMemory stagingBufferMemory;
 	//VK_BUFFER_USAGE_TRANSFER_SRC_BIT：缓冲区可以用作内存传输操作中的源。
-	createBuffer(bufferSize,
+	VulkanHelper::createBuffer(physicalDevice, device, bufferSize,
 		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 		stagingBuffer,
@@ -861,13 +862,13 @@ void Triangle::createVertexBuffer()
 	vkUnmapMemory(device, stagingBufferMemory);
 
 	//VK_BUFFER_USAGE_TRANSFER_DST_BIT：缓冲区可用作内存传输操作中的目标。
-	createBuffer(bufferSize,
+	VulkanHelper::createBuffer(physicalDevice, device, bufferSize,
 		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		vertexBuffer,
 		vertexBufferMemory);
 	// 数据从暂存缓冲区复制到设备缓冲区
-	copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
+	VulkanHelper::copyBuffer(device, commandPool, graphicsQueue, stagingBuffer, vertexBuffer, bufferSize);
 
 	vkDestroyBuffer(device, stagingBuffer, nullptr);
 	vkFreeMemory(device, stagingBufferMemory, nullptr);
@@ -882,16 +883,16 @@ void Triangle::createIndexBuffer()
 
 	VkBuffer stagingBuffer;
 	VkDeviceMemory stagingBufferMemory;
-	createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+	VulkanHelper::createBuffer(physicalDevice, device, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
 
 	void* data;
 	vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
 	memcpy(data, indices.data(), (size_t)bufferSize);
 	vkUnmapMemory(device, stagingBufferMemory);
 
-	createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer, indexBufferMemory);
+	VulkanHelper::createBuffer(physicalDevice, device, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer, indexBufferMemory);
 
-	copyBuffer(stagingBuffer, indexBuffer, bufferSize);
+	VulkanHelper::copyBuffer(device, commandPool, graphicsQueue, stagingBuffer, indexBuffer, bufferSize);
 
 	vkDestroyBuffer(device, stagingBuffer, nullptr);
 	vkFreeMemory(device, stagingBufferMemory, nullptr);
@@ -909,7 +910,7 @@ void Triangle::createUniformBuffers()
 	uniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
 
 	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-		createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBuffers[i], uniformBuffersMemory[i]);
+		VulkanHelper::createBuffer(physicalDevice, device, bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBuffers[i], uniformBuffersMemory[i]);
 
 		vkMapMemory(device, uniformBuffersMemory[i], 0, bufferSize, 0, &uniformBuffersMapped[i]);
 	}
@@ -924,7 +925,7 @@ void Triangle::capsule_createUniformBuffers()
 	capsule_uniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
 
 	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-		createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, capsule_uniformBuffers[i], capsule_uniformBuffersMemory[i]);
+		VulkanHelper::createBuffer(physicalDevice, device, bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, capsule_uniformBuffers[i], capsule_uniformBuffersMemory[i]);
 
 		vkMapMemory(device, capsule_uniformBuffersMemory[i], 0, bufferSize, 0, &capsule_uniformBuffersMapped[i]);
 	}
@@ -1258,7 +1259,7 @@ void Triangle::createImageViews()
 	swapChainImageViews.resize(swapChainImages.size());
 	for (size_t i = 0; i < swapChainImages.size(); i++)
 	{
-		swapChainImageViews[i] = createImageView(swapChainImages[i], swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+		swapChainImageViews[i] = VulkanHelper::createImageView(device, swapChainImages[i], swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
 	}
 }
 
@@ -1571,8 +1572,8 @@ void Triangle::cleanUp()
 	m_texture.Free();
 	m_texture1.Free();
 
-	vkDestroyDescriptorSetLayout(device, uniformDescriptorSetLayout, nullptr);
-	vkDestroyDescriptorSetLayout(device, textureDescriptorSetLayout, nullptr);
+	vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+	vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
 	// 同步对象
 	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
 		vkDestroySemaphore(device, renderFinishedSemaphores[i], nullptr);
@@ -1662,9 +1663,9 @@ void Triangle::initImgui()
 	// 初始化 Vulkan;
 	ImGui_ImplVulkan_Init(&init_info, renderPass);
 
-	VkCommandBuffer command_buffer = beginSingleTimeCommands();
+	VkCommandBuffer command_buffer = VulkanHelper::beginSingleTimeCommands(device, commandPool);
 	ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
-	endSingleTimeCommands(command_buffer);
+	VulkanHelper::endSingleTimeCommands(device, commandPool, graphicsQueue, command_buffer);
 	vkDeviceWaitIdle(device);
 	ImGui_ImplVulkan_DestroyFontUploadObjects();
 }

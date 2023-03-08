@@ -97,13 +97,17 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="EditorPanel.h" />
+    <ClInclude Include="Texture.h" />
     <ClInclude Include="Timer.h" />
     <ClInclude Include="Timestep.h" />
     <ClInclude Include="Triangle.h" />
     <ClInclude Include="imgui_impl_glfw.h" />
     <ClInclude Include="imgui_impl_vulkan.h" />
+    <ClInclude Include="VulkanHelper.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Texture.cpp" />
     <ClCompile Include="Triangle.cpp">
       <ExternalWarningLevel>Level3</ExternalWarningLevel>
       <ExternalWarningLevel>Level3</ExternalWarningLevel>
