@@ -1730,26 +1730,24 @@ void Triangle::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
 		throw std::runtime_error("failed to begin recording command buffer!");
 	}
 
-	
 
+	// 绘制原来的图像数据
+	VkRenderPassBeginInfo renderPassInfo{};
+	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	renderPassInfo.renderPass = renderPass;
+	renderPassInfo.framebuffer = swapChainFramebuffers[imageIndex];
+	renderPassInfo.renderArea.offset = { 0, 0 };
+	renderPassInfo.renderArea.extent = swapChainExtent;
+
+	std::array<VkClearValue, 2> clearValues{};
+	clearValues[0].color = { {0.0f, 0.0f, 0.0f, 1.0f} };
+	clearValues[1].depthStencil = { 1.0f, 0 };
+
+	renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+	renderPassInfo.pClearValues = clearValues.data();
+
+	vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 	{
-		// 绘制原来的图像数据
-		VkRenderPassBeginInfo renderPassInfo{};
-		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		renderPassInfo.renderPass = renderPass;
-		renderPassInfo.framebuffer = swapChainFramebuffers[imageIndex];
-		renderPassInfo.renderArea.offset = { 0, 0 };
-		renderPassInfo.renderArea.extent = swapChainExtent;
-
-		std::array<VkClearValue, 2> clearValues{};
-		clearValues[0].color = { {0.0f, 0.0f, 0.0f, 1.0f} };
-		clearValues[1].depthStencil = { 1.0f, 0 };
-
-		renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-		renderPassInfo.pClearValues = clearValues.data();
-
-		vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
 		VkViewport viewport{};
@@ -1770,79 +1768,22 @@ void Triangle::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
 		VkDeviceSize offsets[] = { 0 };
 		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 
-		//vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
 		vkCmdBindIndexBuffer(commandBuffer, capsule_indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &capsule_descriptorSets[currentFrame], 0, nullptr);
 		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(capsule_indices.size()), 1, 0, 0, 0);
-
-		/*vkCmdEndRenderPass(commandBuffer);*/
 	}
 
 	{
-		// 绘制原来的图像数据
-		//VkRenderPassBeginInfo renderPassInfo{};
-		//renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		//renderPassInfo.renderPass = renderPass;
-		//renderPassInfo.framebuffer = swapChainFramebuffers[imageIndex];
-		//renderPassInfo.renderArea.offset = { 0, 0 };
-		//renderPassInfo.renderArea.extent = swapChainExtent;
-
-		//std::array<VkClearValue, 2> clearValues{};
-		//clearValues[0].color = { {0.0f, 0.0f, 0.0f, 1.0f} };
-		//clearValues[1].depthStencil = { 1.0f, 0 };
-
-		//renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-		//renderPassInfo.pClearValues = clearValues.data();
-
-		//vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
-
-		/*VkViewport viewport{};
-		viewport.x = 0.0f;
-		viewport.y = 0.0f;
-		viewport.width = (float)swapChainExtent.width;
-		viewport.height = (float)swapChainExtent.height;
-		viewport.minDepth = 0.0f;
-		viewport.maxDepth = 1.0f;
-		vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-
-		VkRect2D scissor{};
-		scissor.offset = { 0, 0 };
-		scissor.extent = swapChainExtent;
-		vkCmdSetScissor(commandBuffer, 0, 1, &scissor);*/
-
 		VkBuffer vertexBuffers[] = { vertexBuffer };
 		VkDeviceSize offsets[] = { 0 };
 		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-
-		//vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
 		vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
 		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
-
-		vkCmdEndRenderPass(commandBuffer);
+		imguiRender(commandBuffer);
 	}
-
-	// 绘制Imgui
-	{
-		VkRenderPassBeginInfo g_renderPassInfo = {};
-		g_renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		g_renderPassInfo.renderPass = g_Renderpass;
-		g_renderPassInfo.framebuffer = g_Framebuffers[imageIndex];
-		g_renderPassInfo.renderArea.offset = { 0, 0 };
-		g_renderPassInfo.renderArea.extent = swapChainExtent;
-		VkClearValue g_clearColor = { 0.0f, 0.0f, 0.0f, 1.0f };
-		g_renderPassInfo.clearValueCount = 1;
-		g_renderPassInfo.pClearValues = &g_clearColor;
-		vkCmdBeginRenderPass(commandBuffer, &g_renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-		// Record dear imgui primitives into command buffer
-		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
-		vkCmdEndRenderPass(commandBuffer);
-	}
-
-
+	vkCmdEndRenderPass(commandBuffer);
 	if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
 		throw std::runtime_error("failed to record command buffer!");
 	}
@@ -1866,14 +1807,13 @@ void Triangle::drawFrame(Timestep timestep)
 
 	if (result == VK_ERROR_OUT_OF_DATE_KHR) {
 		recreateSwapChain();
-		resetImgui();
 		return;
 	}
 	else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
 		throw std::runtime_error("failed to acquire swap chain image!");
 	}
 
-	imguiRender();
+
 	cameraMove(timestep);
 
 	updateUniformBuffer(currentFrame);
@@ -1921,7 +1861,6 @@ void Triangle::drawFrame(Timestep timestep)
 	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized) {
 		framebufferResized = false;
 		recreateSwapChain();
-		resetImgui();
 	}
 	else if (result != VK_SUCCESS) {
 		throw std::runtime_error("failed to present swap chain image!");
@@ -2412,29 +2351,29 @@ void Triangle::initImgui()
 
 	QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
 
-	// 创建新的描述符池
-	VkDescriptorPoolSize pool_sizes[] =
-	{
-		{ VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
-		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
-		{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
-		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
-		{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
-		{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
-		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
-		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
-		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
-		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
-		{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
-	};
+	//// 创建新的描述符池
+	//VkDescriptorPoolSize pool_sizes[] =
+	//{
+	//	{ VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+	//	{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+	//	{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+	//	{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+	//	{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+	//	{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+	//	{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+	//	{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+	//	{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+	//	{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+	//	{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
+	//};
 
-	VkDescriptorPoolCreateInfo pool_info = {};
-	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-	pool_info.maxSets = 1000 * IM_ARRAYSIZE(pool_sizes);
-	pool_info.poolSizeCount = (uint32_t)IM_ARRAYSIZE(pool_sizes);
-	pool_info.pPoolSizes = pool_sizes;
-	VkResult err = vkCreateDescriptorPool(device, &pool_info, nullptr, &g_DescriptorPool);
+	//VkDescriptorPoolCreateInfo pool_info = {};
+	//pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	//pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+	//pool_info.maxSets = 1000 * IM_ARRAYSIZE(pool_sizes);
+	//pool_info.poolSizeCount = (uint32_t)IM_ARRAYSIZE(pool_sizes);
+	//pool_info.pPoolSizes = pool_sizes;
+	//VkResult err = vkCreateDescriptorPool(device, &pool_info, nullptr, &g_DescriptorPool);
 
 
 	ImGui_ImplGlfw_InitForVulkan(window, true);
@@ -2445,101 +2384,20 @@ void Triangle::initImgui()
 	init_info.QueueFamily = indices.graphicsFamily.value();
 	init_info.Queue = graphicsQueue;
 	init_info.PipelineCache = VK_NULL_HANDLE;
-	init_info.DescriptorPool = g_DescriptorPool;
+	init_info.DescriptorPool = descriptorPool;
 	init_info.Allocator = nullptr;
 	init_info.MinImageCount = MAX_FRAMES_IN_FLIGHT;
 	init_info.ImageCount = swapChainImages.size();
 	init_info.CheckVkResultFn = NULL;
-
-	createImGuiRenderPass();
-	// 非侵入式的方式初始化 Vulkan;
-	ImGui_ImplVulkan_Init(&init_info, g_Renderpass);
+	init_info.MSAASamples = msaaSamples;
+	// 初始化 Vulkan;
+	ImGui_ImplVulkan_Init(&init_info, renderPass);
 
 	VkCommandBuffer command_buffer = beginSingleTimeCommands();
 	ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
 	endSingleTimeCommands(command_buffer);
+	vkDeviceWaitIdle(device);
 	ImGui_ImplVulkan_DestroyFontUploadObjects();
-	createImGuiFramebuffers();
-}
-
-void Triangle::createImGuiRenderPass()
-{
-	//创建 Renderpass
-	VkAttachmentDescription attachment = {};
-	attachment.format = swapChainImageFormat;
-	attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-	attachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-	attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	attachment.initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-	attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-	VkAttachmentReference color_attachment = {};
-	color_attachment.attachment = 0;
-	color_attachment.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-	VkSubpassDescription subpass = {};
-	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-	subpass.colorAttachmentCount = 1;
-	subpass.pColorAttachments = &color_attachment;
-	VkSubpassDependency dependency = {};
-	dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-	dependency.dstSubpass = 0;
-	dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	dependency.srcAccessMask = 0;
-	dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-	VkRenderPassCreateInfo info = {};
-	info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	info.attachmentCount = 1;
-	info.pAttachments = &attachment;
-	info.subpassCount = 1;
-	info.pSubpasses = &subpass;
-	info.dependencyCount = 1;
-	info.pDependencies = &dependency;
-	if (vkCreateRenderPass(device, &info, nullptr, &g_Renderpass) != VK_SUCCESS) {
-		throw std::runtime_error("Could not create Dear ImGui's render pass");
-	}
-}
-
-void Triangle::resetImgui()
-{
-	for (size_t i = 0; i < g_Framebuffers.size(); i++)
-	{
-		vkDestroyFramebuffer(device, g_Framebuffers[i], nullptr);
-	}
-	vkDestroyRenderPass(device, g_Renderpass, nullptr);
-
-	// We also need to take care of the UI
-	ImGui_ImplVulkan_SetMinImageCount(MAX_FRAMES_IN_FLIGHT);
-
-	createImGuiRenderPass();
-	createImGuiFramebuffers();
-
-}
-
-void Triangle::createImGuiFramebuffers()
-{
-	g_Framebuffers.resize(swapChainImageViews.size());
-
-	for (size_t i = 0; i < swapChainImageViews.size(); i++) {
-
-		std::array<VkImageView, 1> attachments = {
-			swapChainImageViews[i]
-		};
-
-		VkFramebufferCreateInfo framebufferInfo{};
-		framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-		framebufferInfo.renderPass = g_Renderpass;
-		framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
-		framebufferInfo.pAttachments = attachments.data();
-		framebufferInfo.width = swapChainExtent.width;
-		framebufferInfo.height = swapChainExtent.height;
-		framebufferInfo.layers = 1;
-
-		if (vkCreateFramebuffer(device, &framebufferInfo, nullptr, &g_Framebuffers[i]) != VK_SUCCESS) {
-			throw std::runtime_error("failed to create framebuffer!");
-		}
-	}
 }
 
 /// <summary>
@@ -2551,16 +2409,9 @@ void Triangle::clearImgui()
 	ImGui_ImplGlfw_Shutdown();
 	ImGui::DestroyContext();
 
-	for (size_t i = 0; i < g_Framebuffers.size(); i++)
-	{
-		vkDestroyFramebuffer(device, g_Framebuffers[i], nullptr);
-	}
-
-	vkDestroyRenderPass(device, g_Renderpass, nullptr);
-	vkDestroyDescriptorPool(device, g_DescriptorPool, nullptr);
 }
 
-void Triangle::imguiRender()
+void Triangle::imguiRender(VkCommandBuffer commandBuffer)
 {
 	ImGui_ImplVulkan_NewFrame();
 	ImGui_ImplGlfw_NewFrame();
@@ -2600,13 +2451,9 @@ void Triangle::imguiRender()
 	ImGui::End();
 
 	ImGui::Render();
+	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
 	SetLocalMatrix();
-	//ImGuiIO& io = ImGui::GetIO(); (void)io;
-	//if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-	//{
-	//	ImGui::UpdatePlatformWindows();
-	//	ImGui::RenderPlatformWindowsDefault();
-	//}
+
 }
 
 

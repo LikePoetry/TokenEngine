@@ -425,8 +425,6 @@ private:
 	std::vector<VkDeviceMemory> capsule_uniformBuffersMemory;
 	std::vector<void*> capsule_uniformBuffersMapped;
 
-
-
 	const std::string MODEL_PATH = "../models/CrashCar.obj";
 	const std::string TEXTURE_PATH = "../textures/CrashCar.png";
 
@@ -436,15 +434,8 @@ private:
 
 public:
 	void initImgui();
-	void resetImgui();
-	void createImGuiRenderPass();
-	void createImGuiFramebuffers();
-	void imguiRender();
+	void imguiRender(VkCommandBuffer commandBuffer);
 	void clearImgui();
-
-	VkDescriptorPool g_DescriptorPool;
-	VkRenderPass g_Renderpass;
-	std::vector<VkFramebuffer> g_Framebuffers;
 
 	// Imgui ¿Ø¼þ»æÖÆ
 public:
@@ -473,5 +464,5 @@ public:
 	bool keys[1024];
 
 	float m_LastFrameTime = 0.0f;
-	float camerSpeed = 2.0f;
+	float camerSpeed = 20.0f;
 };
