@@ -22,6 +22,9 @@
 
 #include <array>
 
+#include "Timer.h"
+#include "Timestep.h"
+
 		/// Return the smaller of two values.
 template <class T, class U>
 inline T Min(T lhs, U rhs)
@@ -153,7 +156,7 @@ private:
 	//命令缓冲区记录
 	void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 	//渲染与演示
-	void drawFrame();
+	void drawFrame(Timestep timestep);
 	//创建同步对象
 	void createSyncObjects();
 
@@ -374,11 +377,14 @@ private:
 	std::vector<Vertex> vertices;
 	std::vector<uint32_t> indices;
 
-	const std::string MODEL_PATH = "../models/viking_room.obj";
-	const std::string TEXTURE_PATH = "../textures/viking_room.png";
+	//const std::string MODEL_PATH = "../models/viking_room.obj";
+	//const std::string TEXTURE_PATH = "../textures/viking_room.png";
 
 	//const std::string MODEL_PATH = "../models/Capsule.obj";
 	//const std::string TEXTURE_PATH = "../textures/Capsule.jpg";
+
+	const std::string MODEL_PATH = "../models/CrashCar.obj";
+	const std::string TEXTURE_PATH = "../textures/CrashCar.png";
 
 	// 多重采样
 	VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT;
@@ -400,8 +406,8 @@ public:
 public:
 	bool PorpertyTransform(const std::string& name, glm::vec3& vector, float width);
 	void SetLocalMatrix();
-	void cameraMove(float time);
-
+	void cameraMove(Timestep ts);
+	void timeController();
 public:
 	glm::mat4 m_LocalMatrix = glm::mat4(1);
 
@@ -418,4 +424,7 @@ public:
 	float m_aspect = 45.0f;
 
 	bool keys[1024];
+
+	float m_LastFrameTime = 0.0f;
+	float camerSpeed = 2.0f;
 };

@@ -1471,7 +1471,7 @@ void Triangle::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
 /// <summary>
 /// 渲染与演示
 /// </summary>
-void Triangle::drawFrame()
+void Triangle::drawFrame(Timestep timestep)
 {
 	//	等待上一帧完成
 	//	从交换链获取图像
@@ -1494,6 +1494,8 @@ void Triangle::drawFrame()
 	}
 
 	imguiRender();
+	cameraMove(timestep);
+
 	updateUniformBuffer(currentFrame);
 
 	vkResetFences(device, 1, &inFlightFences[currentFrame]);
@@ -1553,12 +1555,6 @@ void Triangle::drawFrame()
 /// <param name="currentImage"></param>
 void Triangle::updateUniformBuffer(uint32_t currentImage)
 {
-	static auto startTime = std::chrono::high_resolution_clock::now();
-
-	auto currentTime = std::chrono::high_resolution_clock::now();
-	float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
-
-	cameraMove(time);
 
 	UniformBufferObject ubo{};
 	ubo.model = m_LocalMatrix;// 模型矩阵，模型在 3d空间中的位置;
@@ -1894,8 +1890,19 @@ void Triangle::mainLoop()
 {
 	while (!glfwWindowShouldClose(window))
 	{
-		glfwPollEvents();
-		drawFrame();
+		// 稳定60fps;
+		float time = glfwGetTime();
+		Timestep timestep = time - m_LastFrameTime;
+		float accumulator = timestep;
+		while (accumulator > 1.0 / 61.0)
+		{
+			m_LastFrameTime = time;
+			accumulator -= 1.0 / 59.0;
+			glfwPollEvents();
+			drawFrame(timestep);
+			if (accumulator < 0) accumulator = 0;
+		}
+
 	}
 
 	vkDeviceWaitIdle(device);
@@ -2249,24 +2256,28 @@ void Triangle::SetLocalMatrix()
 	m_LocalMatrix = glm::translate(glm::mat4(1.0), m_Position) * glm::toMat4(glm::quat(glm::radians(glm::vec3(pitch, m_Rotation.y, m_Rotation.z)))) * glm::scale(glm::mat4(1.0), m_Scale);
 }
 
-void Triangle::cameraMove(float time)
+void Triangle::cameraMove(Timestep ts)
 {
-	float camerSpeed = 0.005f * time;
-
+	std::cout << ts << std::endl;
 	if (keys[GLFW_KEY_W])
 	{
-		mCamera_Position += camerSpeed * mCamera_Target;
+		mCamera_Position += (camerSpeed * ts) * mCamera_Target;
 	}
 	if (keys[GLFW_KEY_S])
 	{
-		mCamera_Position -= camerSpeed * mCamera_Target;
+		mCamera_Position -= (camerSpeed * ts) * mCamera_Target;
 	}
 	if (keys[GLFW_KEY_A])
 	{
-		mCamera_Position -= glm::normalize(glm::cross(mCamera_Target, mCamera_Up)) * camerSpeed;
+		mCamera_Position -= glm::normalize(glm::cross(mCamera_Target, mCamera_Up)) * (camerSpeed * ts);
 	}
 	if (keys[GLFW_KEY_D])
 	{
-		mCamera_Position += glm::normalize(glm::cross(mCamera_Target, mCamera_Up)) * camerSpeed;
+		mCamera_Position += glm::normalize(glm::cross(mCamera_Target, mCamera_Up)) * (camerSpeed * ts);
 	}
+}
+
+void Triangle::timeController()
+{
+
 }
