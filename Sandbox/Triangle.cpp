@@ -147,20 +147,47 @@ void Triangle::initVulkan()
 	createDepthResources();
 	// 与绘制相关
 	createFramebuffers();
+
+	capsule_createFramebuffers();
+
 	createCommandPool();
+
+
+	capsule_createTextureImage();
+	capsule_createTextureImageView();
+	capsule_createTextureSampler();
+
 
 	// 创建纹理贴图
 	createTextureImage();
 	createTextureImageView();
 	createTextureSampler();
+
+
+
 	//用户输入
 	loadModel();
 	createVertexBuffer();
 	createIndexBuffer();
 	createUniformBuffers();
+
+	//另一个模型
+	capsule_loadModel();
+	capsule_createVertexBuffer();
+	capsule_createIndexBuffer();
+	capsule_createUniformBuffers();
+
+
+
+
 	//创建描述符池
 	createDescriptorPool();
+	capsule_createDescriptorSets();
+
 	createDescriptorSets();
+
+
+
 
 	createCommandBuffers();
 	createSyncObjects();
@@ -593,6 +620,11 @@ void Triangle::createFramebuffers()
 	}
 }
 
+void Triangle::capsule_createFramebuffers()
+{
+
+}
+
 /// <summary>
 /// 创建命令池
 /// </summary>
@@ -857,6 +889,35 @@ void Triangle::createTextureSampler()
 	}
 }
 
+
+void Triangle::capsule_createTextureSampler()
+{
+	VkPhysicalDeviceProperties properties{};
+	vkGetPhysicalDeviceProperties(physicalDevice, &properties);
+
+	VkSamplerCreateInfo samplerInfo{};
+	samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+	samplerInfo.magFilter = VK_FILTER_LINEAR;
+	samplerInfo.minFilter = VK_FILTER_LINEAR;
+	samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.anisotropyEnable = VK_FALSE;
+	samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+	samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+	samplerInfo.unnormalizedCoordinates = VK_FALSE;
+	samplerInfo.compareEnable = VK_FALSE;
+	samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+	samplerInfo.minLod = 0.0f;
+	samplerInfo.maxLod = static_cast<float>(capsule_mipLevels);
+	samplerInfo.mipLodBias = 0.0f;
+
+	if (vkCreateSampler(device, &samplerInfo, nullptr, &capsule_textureSampler) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create texture sampler!");
+	}
+}
+
 /// <summary>
 /// 创建纹理图像视图
 /// </summary>
@@ -1113,8 +1174,238 @@ void Triangle::loadModel()
 			indices.push_back(uniqueVertices[vertex]);
 		}
 	}
+}
+
+/// <summary>
+/// 载入Capsule模型
+/// </summary>
+void Triangle::capsule_loadModel()
+{
+	tinyobj::attrib_t attrib;
+	std::vector<tinyobj::shape_t> shapes;
+	std::vector<tinyobj::material_t> materials;
+	std::string warn, err;
+
+	if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, CAPSULE_MODEL_PATH.c_str())) {
+		throw std::runtime_error(warn + err);
+	}
+
+	std::unordered_map<Vertex, uint32_t> uniqueVertices{};
+
+	for (const auto& shape : shapes) {
+		for (const auto& index : shape.mesh.indices) {
+			Vertex vertex{};
+
+			vertex.pos = {
+					attrib.vertices[3 * index.vertex_index + 0],
+					attrib.vertices[3 * index.vertex_index + 1],
+					attrib.vertices[3 * index.vertex_index + 2]
+			};
+
+			vertex.texCoord = {
+				attrib.texcoords[2 * index.texcoord_index + 0],
+				1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
+			};
+
+			vertex.color = { 1.0f, 1.0f, 1.0f };
+
+			if (uniqueVertices.count(vertex) == 0) {
+				uniqueVertices[vertex] = static_cast<uint32_t>(capsule_vertices.size());
+				capsule_vertices.push_back(vertex);
+			}
+
+			capsule_indices.push_back(uniqueVertices[vertex]);
+		}
+	}
+}
+
+/// <summary>
+/// 创建胶囊的顶点Buffer
+/// </summary>
+void Triangle::capsule_createVertexBuffer()
+{
+	VkDeviceSize bufferSize = sizeof(capsule_vertices[0]) * capsule_vertices.size();
+
+	VkBuffer stagingBuffer;
+	VkDeviceMemory stagingBufferMemory;
+	//VK_BUFFER_USAGE_TRANSFER_SRC_BIT：缓冲区可以用作内存传输操作中的源。
+	createBuffer(bufferSize,
+		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		stagingBuffer,
+		stagingBufferMemory);
+
+	void* data;
+	vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+	memcpy(data, capsule_vertices.data(), (size_t)bufferSize);
+	vkUnmapMemory(device, stagingBufferMemory);
+
+	//VK_BUFFER_USAGE_TRANSFER_DST_BIT：缓冲区可用作内存传输操作中的目标。
+	createBuffer(bufferSize,
+		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		capsule_vertexBuffer,
+		capsule_vertexBufferMemory);
+	// 数据从暂存缓冲区复制到设备缓冲区
+	copyBuffer(stagingBuffer, capsule_vertexBuffer, bufferSize);
+
+	vkDestroyBuffer(device, stagingBuffer, nullptr);
+	vkFreeMemory(device, stagingBufferMemory, nullptr);
+}
+
+/// <summary>
+/// 创建胶囊体的索引数据
+/// </summary>
+void Triangle::capsule_createIndexBuffer()
+{
+	VkDeviceSize bufferSize = sizeof(capsule_indices[0]) * capsule_indices.size();
+
+	VkBuffer stagingBuffer;
+	VkDeviceMemory stagingBufferMemory;
+	createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+
+	void* data;
+	vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+	memcpy(data, capsule_indices.data(), (size_t)bufferSize);
+	vkUnmapMemory(device, stagingBufferMemory);
+
+	createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, capsule_indexBuffer, capsule_indexBufferMemory);
+
+	copyBuffer(stagingBuffer, capsule_indexBuffer, bufferSize);
+
+	vkDestroyBuffer(device, stagingBuffer, nullptr);
+	vkFreeMemory(device, stagingBufferMemory, nullptr);
 
 
+	//VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
+
+	//VkBuffer stagingBuffer;
+	//VkDeviceMemory stagingBufferMemory;
+	//createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+
+	//void* data;
+	//vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+	//memcpy(data, indices.data(), (size_t)bufferSize);
+	//vkUnmapMemory(device, stagingBufferMemory);
+
+	//createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer, indexBufferMemory);
+
+	//copyBuffer(stagingBuffer, indexBuffer, bufferSize);
+
+	//vkDestroyBuffer(device, stagingBuffer, nullptr);
+	//vkFreeMemory(device, stagingBufferMemory, nullptr);
+}
+
+void Triangle::capsule_createTextureImage()
+{
+	int texWidth, texHeight, texChannels;
+	stbi_uc* pixels = stbi_load(CAPSULE_TEXTURE_PATH.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+	VkDeviceSize imageSize = texWidth * texHeight * 4;
+	capsule_mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
+
+	if (!pixels) {
+		throw std::runtime_error("failed to load texture image!");
+	}
+
+	VkBuffer stagingBuffer;
+	VkDeviceMemory stagingBufferMemory;
+	createBuffer(imageSize,
+		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		stagingBuffer,
+		stagingBufferMemory);
+
+	void* data;
+	vkMapMemory(device, stagingBufferMemory, 0, imageSize, 0, &data);
+	memcpy(data, pixels, static_cast<size_t>(imageSize));
+	vkUnmapMemory(device, stagingBufferMemory);
+
+	stbi_image_free(pixels);
+
+	createImage(texWidth,
+		texHeight, capsule_mipLevels,
+		VK_SAMPLE_COUNT_1_BIT,
+		VK_FORMAT_R8G8B8A8_SRGB,
+		VK_IMAGE_TILING_OPTIMAL,
+		VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		capsule_textureImage,
+		capsule_textureImageMemory);
+
+	transitionImageLayout(capsule_textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, capsule_mipLevels);
+	copyBufferToImage(stagingBuffer, capsule_textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
+	//transitioned to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL while generating mipmaps
+
+	vkDestroyBuffer(device, stagingBuffer, nullptr);
+	vkFreeMemory(device, stagingBufferMemory, nullptr);
+
+	generateMipmaps(capsule_textureImage, VK_FORMAT_R8G8B8A8_SRGB, texWidth, texHeight, capsule_mipLevels);
+}
+
+void Triangle::capsule_createTextureImageView()
+{
+	capsule_textureImageView = createImageView(capsule_textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, capsule_mipLevels);
+}
+
+/// <summary>
+/// 创建描述符集
+/// </summary>
+void Triangle::capsule_createDescriptorSets()
+{
+	std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptorSetLayout);
+	VkDescriptorSetAllocateInfo allocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	allocInfo.descriptorPool = descriptorPool;
+	allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+	allocInfo.pSetLayouts = layouts.data();
+
+	capsule_descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
+	if (vkAllocateDescriptorSets(device, &allocInfo, capsule_descriptorSets.data()) != VK_SUCCESS) {
+		throw std::runtime_error("failed to allocate descriptor sets!");
+	}
+
+	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+		VkDescriptorBufferInfo bufferInfo{};
+		bufferInfo.buffer = capsule_uniformBuffers[i];
+		bufferInfo.offset = 0;
+		bufferInfo.range = sizeof(UniformBufferObject);
+
+		VkDescriptorImageInfo imageInfo{};
+		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		imageInfo.imageView = capsule_textureImageView;
+		imageInfo.sampler = capsule_textureSampler;
+
+		std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+
+		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrites[0].dstSet = capsule_descriptorSets[i];
+		descriptorWrites[0].dstBinding = 0;
+		descriptorWrites[0].dstArrayElement = 0;
+		descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		descriptorWrites[0].descriptorCount = 1;
+		descriptorWrites[0].pBufferInfo = &bufferInfo;
+
+		descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrites[1].dstSet = capsule_descriptorSets[i];
+		descriptorWrites[1].dstBinding = 1;
+		descriptorWrites[1].dstArrayElement = 0;
+		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		descriptorWrites[1].descriptorCount = 1;
+		descriptorWrites[1].pImageInfo = &imageInfo;
+
+		vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+
+		/*VkWriteDescriptorSet descriptorWrite{};
+		descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrite.dstSet = descriptorSets[i];
+		descriptorWrite.dstBinding = 0;
+		descriptorWrite.dstArrayElement = 0;
+		descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		descriptorWrite.descriptorCount = 1;
+		descriptorWrite.pBufferInfo = &bufferInfo;
+
+		vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);*/
+	}
 }
 
 /// <summary>
@@ -1193,6 +1484,21 @@ void Triangle::createUniformBuffers()
 	}
 }
 
+void Triangle::capsule_createUniformBuffers()
+{
+	VkDeviceSize bufferSize = sizeof(UniformBufferObject);
+
+	capsule_uniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+	capsule_uniformBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
+	capsule_uniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
+
+	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+		createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, capsule_uniformBuffers[i], capsule_uniformBuffersMemory[i]);
+
+		vkMapMemory(device, capsule_uniformBuffersMemory[i], 0, bufferSize, 0, &capsule_uniformBuffersMapped[i]);
+	}
+}
+
 /// <summary>
 /// 创建描述符池
 /// </summary>
@@ -1213,21 +1519,47 @@ void Triangle::createDescriptorPool()
 	}*/
 
 	// 创建更大的描述符池，池不够大会失败
-	std::array<VkDescriptorPoolSize, 2> poolSizes{};
-	poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	poolSizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
-	poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	poolSizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+	//std::array<VkDescriptorPoolSize, 2> poolSizes{};
+	//poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	//poolSizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+	//poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	//poolSizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
 
-	VkDescriptorPoolCreateInfo poolInfo{};
-	poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
-	poolInfo.pPoolSizes = poolSizes.data();
-	poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+	//VkDescriptorPoolCreateInfo poolInfo{};
+	//poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	//poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
+	//poolInfo.pPoolSizes = poolSizes.data();
+	//poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
 
-	if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create descriptor pool!");
-	}
+	//if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
+	//	throw std::runtime_error("failed to create descriptor pool!");
+	//}
+
+
+
+	// 创建新的描述符池
+	VkDescriptorPoolSize pool_sizes[] =
+	{
+		{ VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+		{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
+	};
+
+	VkDescriptorPoolCreateInfo pool_info = {};
+	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+	pool_info.maxSets = 1000 * IM_ARRAYSIZE(pool_sizes);
+	pool_info.poolSizeCount = (uint32_t)IM_ARRAYSIZE(pool_sizes);
+	pool_info.pPoolSizes = pool_sizes;
+	VkResult err = vkCreateDescriptorPool(device, &pool_info, nullptr, &descriptorPool);
 }
 
 /// <summary>
@@ -1398,6 +1730,8 @@ void Triangle::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
 		throw std::runtime_error("failed to begin recording command buffer!");
 	}
 
+	
+
 	{
 		// 绘制原来的图像数据
 		VkRenderPassBeginInfo renderPassInfo{};
@@ -1431,6 +1765,52 @@ void Triangle::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
 		scissor.offset = { 0, 0 };
 		scissor.extent = swapChainExtent;
 		vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+
+		VkBuffer vertexBuffers[] = { capsule_vertexBuffer };
+		VkDeviceSize offsets[] = { 0 };
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+
+		//vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+		vkCmdBindIndexBuffer(commandBuffer, capsule_indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &capsule_descriptorSets[currentFrame], 0, nullptr);
+		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(capsule_indices.size()), 1, 0, 0, 0);
+
+		/*vkCmdEndRenderPass(commandBuffer);*/
+	}
+
+	{
+		// 绘制原来的图像数据
+		//VkRenderPassBeginInfo renderPassInfo{};
+		//renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+		//renderPassInfo.renderPass = renderPass;
+		//renderPassInfo.framebuffer = swapChainFramebuffers[imageIndex];
+		//renderPassInfo.renderArea.offset = { 0, 0 };
+		//renderPassInfo.renderArea.extent = swapChainExtent;
+
+		//std::array<VkClearValue, 2> clearValues{};
+		//clearValues[0].color = { {0.0f, 0.0f, 0.0f, 1.0f} };
+		//clearValues[1].depthStencil = { 1.0f, 0 };
+
+		//renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+		//renderPassInfo.pClearValues = clearValues.data();
+
+		//vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+
+		/*VkViewport viewport{};
+		viewport.x = 0.0f;
+		viewport.y = 0.0f;
+		viewport.width = (float)swapChainExtent.width;
+		viewport.height = (float)swapChainExtent.height;
+		viewport.minDepth = 0.0f;
+		viewport.maxDepth = 1.0f;
+		vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+
+		VkRect2D scissor{};
+		scissor.offset = { 0, 0 };
+		scissor.extent = swapChainExtent;
+		vkCmdSetScissor(commandBuffer, 0, 1, &scissor);*/
 
 		VkBuffer vertexBuffers[] = { vertexBuffer };
 		VkDeviceSize offsets[] = { 0 };
@@ -1497,6 +1877,7 @@ void Triangle::drawFrame(Timestep timestep)
 	cameraMove(timestep);
 
 	updateUniformBuffer(currentFrame);
+	capsule_updateUniformBuffer(currentFrame);
 
 	vkResetFences(device, 1, &inFlightFences[currentFrame]);
 
@@ -1564,6 +1945,17 @@ void Triangle::updateUniformBuffer(uint32_t currentImage)
 
 	memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
 }
+
+void Triangle::capsule_updateUniformBuffer(uint32_t currentImage)
+{
+	UniformBufferObject ubo{};
+	ubo.model = capsule_m_LocalMatrix;// 模型矩阵，模型在 3d空间中的位置;
+	ubo.view = glm::lookAt(mCamera_Position, mCamera_Position + mCamera_Target, mCamera_Up);// 相机的 position,targetPosition, yaw,roll,pitch
+	ubo.proj = glm::perspective(glm::radians(m_aspect), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 100.0f);//设置相机 Fov, width,height,near,far;
+	ubo.proj[1][1] *= -1;
+	memcpy(capsule_uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
+}
+
 
 /// <summary>
 /// 创建同步对象
@@ -1922,16 +2314,31 @@ void Triangle::cleanUp()
 	vkDestroyImageView(device, textureImageView, nullptr);
 	// 清理纹理图像
 	vkDestroyImage(device, textureImage, nullptr);
+
+	//清理纹理采样
+	vkDestroySampler(device, capsule_textureSampler, nullptr);
+	//清理纹理图像视图
+	vkDestroyImageView(device, capsule_textureImageView, nullptr);
+	// 清理纹理图像
+	vkDestroyImage(device, capsule_textureImage, nullptr);
+
 	vkFreeMemory(device, textureImageMemory, nullptr);
+
+	vkFreeMemory(device, capsule_textureImageMemory, nullptr);
+
 
 	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
 		vkDestroyBuffer(device, uniformBuffers[i], nullptr);
 		vkFreeMemory(device, uniformBuffersMemory[i], nullptr);
+
+		vkDestroyBuffer(device, capsule_uniformBuffers[i], nullptr);
+		vkFreeMemory(device, capsule_uniformBuffersMemory[i], nullptr);
 	}
 
 	vkDestroyDescriptorPool(device, descriptorPool, nullptr);
 
 	vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+
 
 	// 同步对象
 	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
@@ -1956,6 +2363,13 @@ void Triangle::cleanUp()
 	// 清理顶点缓冲区
 	vkDestroyBuffer(device, vertexBuffer, nullptr);
 	vkFreeMemory(device, vertexBufferMemory, nullptr);
+
+	vkDestroyBuffer(device, capsule_indexBuffer, nullptr);
+	vkFreeMemory(device, capsule_indexBufferMemory, nullptr);
+
+	// 清理顶点缓冲区
+	vkDestroyBuffer(device, capsule_vertexBuffer, nullptr);
+	vkFreeMemory(device, capsule_vertexBufferMemory, nullptr);
 
 	//清理逻辑设备
 	vkDestroyDevice(device, nullptr);

@@ -149,6 +149,7 @@ private:
 	void createGraphicsPipeline();
 	//创建帧缓冲区
 	void createFramebuffers();
+
 	//创建命令池
 	void createCommandPool();
 	//创建命令缓冲区
@@ -162,6 +163,19 @@ private:
 
 	// 载入模型
 	void loadModel();
+	void capsule_loadModel();
+	void capsule_createVertexBuffer();
+	void capsule_createIndexBuffer();
+	void capsule_createTextureImage();
+	void capsule_createTextureImageView();
+	void capsule_createDescriptorSets();
+	void capsule_createUniformBuffers();
+	void capsule_createFramebuffers();
+	void capsule_updateUniformBuffer(uint32_t currentImage);
+	void capsule_createTextureSampler();
+
+
+
 
 	//创建顶点缓冲
 	void createVertexBuffer();
@@ -282,6 +296,7 @@ private:
 	VkRenderPass renderPass;
 	// 描述符布局
 	VkDescriptorSetLayout descriptorSetLayout;
+
 	// 渲染管线布局
 	VkPipelineLayout pipelineLayout;
 	// 图形管线
@@ -323,6 +338,8 @@ private:
 	VkImageView textureImageView;
 	// 纹理采样
 	VkSampler textureSampler;
+
+	VkSampler capsule_textureSampler;
 
 	//多重采样
 	VkImage colorImage;
@@ -380,8 +397,35 @@ private:
 	//const std::string MODEL_PATH = "../models/viking_room.obj";
 	//const std::string TEXTURE_PATH = "../textures/viking_room.png";
 
-	//const std::string MODEL_PATH = "../models/Capsule.obj";
-	//const std::string TEXTURE_PATH = "../textures/Capsule.jpg";
+	const std::string CAPSULE_MODEL_PATH = "../models/Capsule.obj";
+	const std::string CAPSULE_TEXTURE_PATH = "../textures/Capsule.jpg";
+
+	//const std::string CAPSULE_MODEL_PATH = "../models/CrashCar.obj";
+	//const std::string CAPSULE_TEXTURE_PATH = "../textures/CrashCar.png";
+	std::vector<Vertex> capsule_vertices;
+	std::vector<uint32_t> capsule_indices;
+	// 顶点缓冲区
+	VkBuffer capsule_vertexBuffer;
+	VkDeviceMemory capsule_vertexBufferMemory;
+
+	// 顶点索引缓冲区
+	VkBuffer capsule_indexBuffer;
+	VkDeviceMemory capsule_indexBufferMemory;
+
+	uint32_t capsule_mipLevels;
+	//纹理图像
+	VkImage capsule_textureImage;
+	VkDeviceMemory capsule_textureImageMemory;
+	// 纹理图像视图
+	VkImageView capsule_textureImageView;
+
+	std::vector<VkDescriptorSet> capsule_descriptorSets;
+
+	std::vector<VkBuffer> capsule_uniformBuffers;
+	std::vector<VkDeviceMemory> capsule_uniformBuffersMemory;
+	std::vector<void*> capsule_uniformBuffersMapped;
+
+
 
 	const std::string MODEL_PATH = "../models/CrashCar.obj";
 	const std::string TEXTURE_PATH = "../textures/CrashCar.png";
@@ -410,6 +454,9 @@ public:
 	void timeController();
 public:
 	glm::mat4 m_LocalMatrix = glm::mat4(1);
+
+	glm::mat4 capsule_m_LocalMatrix = glm::mat4(1);
+
 
 	glm::vec3 m_Position = glm::vec3(0);
 	glm::vec3 m_Rotation = glm::vec3(0);
