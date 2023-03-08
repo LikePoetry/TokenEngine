@@ -21,9 +21,6 @@
 
 #include <memory>
 
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
-
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tiny_obj_loader.h>
 
@@ -148,45 +145,24 @@ void Triangle::initVulkan()
 	// 与绘制相关
 	createFramebuffers();
 
-	capsule_createFramebuffers();
-
 	createCommandPool();
-
-
-	capsule_createTextureImage();
-	capsule_createTextureImageView();
-	capsule_createTextureSampler();
-
-
-	// 创建纹理贴图
-	createTextureImage();
-	createTextureImageView();
-	createTextureSampler();
-
-
-
 	//用户输入
 	loadModel();
 	createVertexBuffer();
 	createIndexBuffer();
 	createUniformBuffers();
-
 	//另一个模型
 	capsule_loadModel();
 	capsule_createVertexBuffer();
 	capsule_createIndexBuffer();
 	capsule_createUniformBuffers();
 
-
-
-
 	//创建描述符池
 	createDescriptorPool();
-	capsule_createDescriptorSets();
 
-	createDescriptorSets();
-
-
+	//创建 Texture
+	m_texture.Load(TEXTURE_PATH.c_str());
+	m_texture1.Load(CAPSULE_TEXTURE_PATH.c_str());
 
 
 	createCommandBuffers();
@@ -435,8 +411,7 @@ void Triangle::createRenderPass()
 /// <summary>
 /// 创建描述符布局
 /// </summary>
-void Triangle::createDescriptorSetLayout()
-{
+void Triangle::createDescriptorSetLayout() {
 	VkDescriptorSetLayoutBinding uboLayoutBinding{};
 	uboLayoutBinding.binding = 0;
 	uboLayoutBinding.descriptorCount = 1;
@@ -444,23 +419,25 @@ void Triangle::createDescriptorSetLayout()
 	uboLayoutBinding.pImmutableSamplers = nullptr;
 	uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
-	// 添加纹理采样器描述符集
 	VkDescriptorSetLayoutBinding samplerLayoutBinding{};
-	samplerLayoutBinding.binding = 1;
+	samplerLayoutBinding.binding = 0;
 	samplerLayoutBinding.descriptorCount = 1;
 	samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	samplerLayoutBinding.pImmutableSamplers = nullptr;
 	samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-	std::array<VkDescriptorSetLayoutBinding, 2> bindings = { uboLayoutBinding, samplerLayoutBinding };
-
 	VkDescriptorSetLayoutCreateInfo layoutInfo{};
 	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-	layoutInfo.pBindings = bindings.data();
+	layoutInfo.bindingCount = 1;
+	layoutInfo.pBindings = &uboLayoutBinding;
 
-	if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create descriptor set layout!");
+	if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &uniformDescriptorSetLayout) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create uniform descriptor set layout!");
+	}
+
+	layoutInfo.pBindings = &samplerLayoutBinding;
+
+	if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &textureDescriptorSetLayout) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create texture descriptor set layout!");
 	}
 }
 
@@ -557,10 +534,12 @@ void Triangle::createGraphicsPipeline()
 	dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
 	dynamicState.pDynamicStates = dynamicStates.data();
 
+	VkDescriptorSetLayout setLayouts[] = { uniformDescriptorSetLayout, textureDescriptorSetLayout };
+
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
 	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	pipelineLayoutInfo.setLayoutCount = 1;
-	pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
+	pipelineLayoutInfo.setLayoutCount = 2;
+	pipelineLayoutInfo.pSetLayouts = setLayouts;
 
 	if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create pipeline layout!");
@@ -618,11 +597,6 @@ void Triangle::createFramebuffers()
 			throw std::runtime_error("failed to create framebuffer!");
 		}
 	}
-}
-
-void Triangle::capsule_createFramebuffers()
-{
-
 }
 
 /// <summary>
@@ -718,419 +692,6 @@ VkSampleCountFlagBits Triangle::getMaxUsableSampleCount()
 	if (counts & VK_SAMPLE_COUNT_2_BIT) { return VK_SAMPLE_COUNT_2_BIT; }
 
 	return VK_SAMPLE_COUNT_1_BIT;
-}
-
-
-/// <summary>
-/// 创建纹理贴图
-/// </summary>
-void Triangle::createTextureImage()
-{
-	int texWidth, texHeight, texChannels;
-	stbi_uc* pixels = stbi_load(TEXTURE_PATH.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-	VkDeviceSize imageSize = texWidth * texHeight * 4;
-	mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
-
-	if (!pixels) {
-		throw std::runtime_error("failed to load texture image!");
-	}
-
-	VkBuffer stagingBuffer;
-	VkDeviceMemory stagingBufferMemory;
-	createBuffer(imageSize,
-		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-		stagingBuffer,
-		stagingBufferMemory);
-
-	void* data;
-	vkMapMemory(device, stagingBufferMemory, 0, imageSize, 0, &data);
-	memcpy(data, pixels, static_cast<size_t>(imageSize));
-	vkUnmapMemory(device, stagingBufferMemory);
-
-	stbi_image_free(pixels);
-
-	createImage(texWidth,
-		texHeight, mipLevels,
-		VK_SAMPLE_COUNT_1_BIT,
-		VK_FORMAT_R8G8B8A8_SRGB,
-		VK_IMAGE_TILING_OPTIMAL,
-		VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		textureImage,
-		textureImageMemory);
-
-	transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels);
-	copyBufferToImage(stagingBuffer, textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
-	//transitioned to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL while generating mipmaps
-
-	vkDestroyBuffer(device, stagingBuffer, nullptr);
-	vkFreeMemory(device, stagingBufferMemory, nullptr);
-
-	generateMipmaps(textureImage, VK_FORMAT_R8G8B8A8_SRGB, texWidth, texHeight, mipLevels);
-}
-
-void Triangle::generateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels)
-{
-	// Check if image format supports linear blitting
-	VkFormatProperties formatProperties;
-	vkGetPhysicalDeviceFormatProperties(physicalDevice, imageFormat, &formatProperties);
-
-	if (!(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
-		throw std::runtime_error("texture image format does not support linear blitting!");
-	}
-
-	VkCommandBuffer commandBuffer = beginSingleTimeCommands();
-
-	VkImageMemoryBarrier barrier{};
-	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-	barrier.image = image;
-	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	barrier.subresourceRange.baseArrayLayer = 0;
-	barrier.subresourceRange.layerCount = 1;
-	barrier.subresourceRange.levelCount = 1;
-
-	int32_t mipWidth = texWidth;
-	int32_t mipHeight = texHeight;
-
-	for (uint32_t i = 1; i < mipLevels; i++) {
-		barrier.subresourceRange.baseMipLevel = i - 1;
-		barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-		barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-		barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-		barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-
-		vkCmdPipelineBarrier(commandBuffer,
-			VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
-			0, nullptr,
-			0, nullptr,
-			1, &barrier);
-
-		VkImageBlit blit{};
-		blit.srcOffsets[0] = { 0, 0, 0 };
-		blit.srcOffsets[1] = { mipWidth, mipHeight, 1 };
-		blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		blit.srcSubresource.mipLevel = i - 1;
-		blit.srcSubresource.baseArrayLayer = 0;
-		blit.srcSubresource.layerCount = 1;
-		blit.dstOffsets[0] = { 0, 0, 0 };
-		blit.dstOffsets[1] = { mipWidth > 1 ? mipWidth / 2 : 1, mipHeight > 1 ? mipHeight / 2 : 1, 1 };
-		blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		blit.dstSubresource.mipLevel = i;
-		blit.dstSubresource.baseArrayLayer = 0;
-		blit.dstSubresource.layerCount = 1;
-
-		vkCmdBlitImage(commandBuffer,
-			image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-			image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-			1, &blit,
-			VK_FILTER_LINEAR);
-
-		barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-		barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-		barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-		vkCmdPipelineBarrier(commandBuffer,
-			VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
-			0, nullptr,
-			0, nullptr,
-			1, &barrier);
-
-		if (mipWidth > 1) mipWidth /= 2;
-		if (mipHeight > 1) mipHeight /= 2;
-	}
-
-	barrier.subresourceRange.baseMipLevel = mipLevels - 1;
-	barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-	barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-	barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-	vkCmdPipelineBarrier(commandBuffer,
-		VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
-		0, nullptr,
-		0, nullptr,
-		1, &barrier);
-
-	endSingleTimeCommands(commandBuffer);
-}
-
-/// <summary>
-/// 创建纹理采样器
-/// </summary>
-void Triangle::createTextureSampler()
-{
-	VkPhysicalDeviceProperties properties{};
-	vkGetPhysicalDeviceProperties(physicalDevice, &properties);
-
-	VkSamplerCreateInfo samplerInfo{};
-	samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-	samplerInfo.magFilter = VK_FILTER_LINEAR;
-	samplerInfo.minFilter = VK_FILTER_LINEAR;
-	samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	samplerInfo.anisotropyEnable = VK_FALSE;
-	samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
-	samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-	samplerInfo.unnormalizedCoordinates = VK_FALSE;
-	samplerInfo.compareEnable = VK_FALSE;
-	samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-	samplerInfo.minLod = 0.0f;
-	samplerInfo.maxLod = static_cast<float>(mipLevels);
-	samplerInfo.mipLodBias = 0.0f;
-
-	if (vkCreateSampler(device, &samplerInfo, nullptr, &textureSampler) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create texture sampler!");
-	}
-}
-
-
-void Triangle::capsule_createTextureSampler()
-{
-	VkPhysicalDeviceProperties properties{};
-	vkGetPhysicalDeviceProperties(physicalDevice, &properties);
-
-	VkSamplerCreateInfo samplerInfo{};
-	samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-	samplerInfo.magFilter = VK_FILTER_LINEAR;
-	samplerInfo.minFilter = VK_FILTER_LINEAR;
-	samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	samplerInfo.anisotropyEnable = VK_FALSE;
-	samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
-	samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-	samplerInfo.unnormalizedCoordinates = VK_FALSE;
-	samplerInfo.compareEnable = VK_FALSE;
-	samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-	samplerInfo.minLod = 0.0f;
-	samplerInfo.maxLod = static_cast<float>(capsule_mipLevels);
-	samplerInfo.mipLodBias = 0.0f;
-
-	if (vkCreateSampler(device, &samplerInfo, nullptr, &capsule_textureSampler) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create texture sampler!");
-	}
-}
-
-/// <summary>
-/// 创建纹理图像视图
-/// </summary>
-void Triangle::createTextureImageView()
-{
-	textureImageView = createImageView(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, mipLevels);
-}
-
-/// <summary>
-/// 创建图像视图
-/// </summary>
-/// <param name="image"></param>
-/// <param name="format"></param>
-/// <returns></returns>
-VkImageView Triangle::createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels)
-{
-	VkImageViewCreateInfo viewInfo{};
-	viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-	viewInfo.image = image;
-	viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-	viewInfo.format = format;
-	viewInfo.subresourceRange.aspectMask = aspectFlags;
-	viewInfo.subresourceRange.baseMipLevel = 0;
-	viewInfo.subresourceRange.levelCount = 1;
-	viewInfo.subresourceRange.baseArrayLayer = 0;
-	viewInfo.subresourceRange.layerCount = 1;
-
-	VkImageView imageView;
-	if (vkCreateImageView(device, &viewInfo, nullptr, &imageView) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create texture image view!");
-	}
-
-	return imageView;
-}
-
-/// <summary>
-/// 创建图像
-/// </summary>
-/// <param name="width"></param>
-/// <param name="height"></param>
-/// <param name="format"></param>
-/// <param name="tiling"></param>
-/// <param name="usage"></param>
-/// <param name="properties"></param>
-/// <param name="image"></param>
-/// <param name="imageMemory"></param>
-void Triangle::createImage(uint32_t width,
-	uint32_t height,
-	uint32_t mipLevels,
-	VkSampleCountFlagBits numSamples,
-	VkFormat format,
-	VkImageTiling tiling,
-	VkImageUsageFlags usage,
-	VkMemoryPropertyFlags properties,
-	VkImage& image,
-	VkDeviceMemory& imageMemory)
-{
-	VkImageCreateInfo imageInfo{};
-	imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-	imageInfo.imageType = VK_IMAGE_TYPE_2D;
-	imageInfo.extent.width = width;
-	imageInfo.extent.height = height;
-	imageInfo.extent.depth = 1;
-	imageInfo.mipLevels = mipLevels;
-	imageInfo.arrayLayers = 1;
-	imageInfo.format = format;
-	imageInfo.tiling = tiling;
-	imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	imageInfo.usage = usage;
-	imageInfo.samples = numSamples;
-	imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-	if (vkCreateImage(device, &imageInfo, nullptr, &image) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create image!");
-	}
-
-	VkMemoryRequirements memRequirements;
-	vkGetImageMemoryRequirements(device, image, &memRequirements);
-
-	VkMemoryAllocateInfo allocInfo{};
-	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	allocInfo.allocationSize = memRequirements.size;
-	allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
-
-	if (vkAllocateMemory(device, &allocInfo, nullptr, &imageMemory) != VK_SUCCESS) {
-		throw std::runtime_error("failed to allocate image memory!");
-	}
-
-	vkBindImageMemory(device, image, imageMemory, 0);
-}
-
-VkCommandBuffer Triangle::beginSingleTimeCommands() {
-	VkCommandBufferAllocateInfo allocInfo{};
-	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	allocInfo.commandPool = commandPool;
-	allocInfo.commandBufferCount = 1;
-
-	VkCommandBuffer commandBuffer;
-	vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
-
-	VkCommandBufferBeginInfo beginInfo{};
-	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-	vkBeginCommandBuffer(commandBuffer, &beginInfo);
-
-	return commandBuffer;
-}
-
-void Triangle::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
-	vkEndCommandBuffer(commandBuffer);
-
-	VkSubmitInfo submitInfo{};
-	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = &commandBuffer;
-
-	vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
-	vkQueueWaitIdle(graphicsQueue);
-
-	vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
-}
-
-/// <summary>
-/// 图像的布局转换
-/// </summary>
-/// <param name="image"></param>
-/// <param name="format"></param>
-/// <param name="oldLayout"></param>
-/// <param name="newLayout"></param>
-void Triangle::transitionImageLayout(VkImage image,
-	VkFormat format, VkImageLayout oldLayout,
-	VkImageLayout newLayout,
-	uint32_t mipLevels)
-{
-	VkCommandBuffer commandBuffer = beginSingleTimeCommands();
-
-	VkImageMemoryBarrier barrier{};
-	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-	barrier.oldLayout = oldLayout;
-	barrier.newLayout = newLayout;
-	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	barrier.image = image;
-	barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	barrier.subresourceRange.baseMipLevel = 0;
-	barrier.subresourceRange.levelCount = mipLevels;
-	barrier.subresourceRange.baseArrayLayer = 0;
-	barrier.subresourceRange.layerCount = 1;
-
-	VkPipelineStageFlags sourceStage;
-	VkPipelineStageFlags destinationStage;
-
-	if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
-		barrier.srcAccessMask = 0;
-		barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-
-		sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-		destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-	}
-	else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
-		barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-		barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-		sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-		destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-	}
-	else {
-		throw std::invalid_argument("unsupported layout transition!");
-	}
-
-	vkCmdPipelineBarrier(
-		commandBuffer,
-		sourceStage, destinationStage,
-		0,
-		0, nullptr,
-		0, nullptr,
-		1, &barrier
-	);
-
-	endSingleTimeCommands(commandBuffer);
-}
-
-/// <summary>
-/// 将缓冲区复制到图像
-/// </summary>
-/// <param name="buffer"></param>
-/// <param name="image"></param>
-/// <param name="width"></param>
-/// <param name="height"></param>
-void Triangle::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height)
-{
-	VkCommandBuffer commandBuffer = beginSingleTimeCommands();
-
-	VkBufferImageCopy region{};
-	region.bufferOffset = 0;
-	region.bufferRowLength = 0;
-	region.bufferImageHeight = 0;
-	region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	region.imageSubresource.mipLevel = 0;
-	region.imageSubresource.baseArrayLayer = 0;
-	region.imageSubresource.layerCount = 1;
-	region.imageOffset = { 0, 0, 0 };
-	region.imageExtent = {
-		width,
-		height,
-		1
-	};
-
-	vkCmdCopyBufferToImage(commandBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-
-	endSingleTimeCommands(commandBuffer);
 }
 
 /// <summary>
@@ -1276,136 +837,6 @@ void Triangle::capsule_createIndexBuffer()
 	vkDestroyBuffer(device, stagingBuffer, nullptr);
 	vkFreeMemory(device, stagingBufferMemory, nullptr);
 
-
-	//VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
-
-	//VkBuffer stagingBuffer;
-	//VkDeviceMemory stagingBufferMemory;
-	//createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
-
-	//void* data;
-	//vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
-	//memcpy(data, indices.data(), (size_t)bufferSize);
-	//vkUnmapMemory(device, stagingBufferMemory);
-
-	//createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer, indexBufferMemory);
-
-	//copyBuffer(stagingBuffer, indexBuffer, bufferSize);
-
-	//vkDestroyBuffer(device, stagingBuffer, nullptr);
-	//vkFreeMemory(device, stagingBufferMemory, nullptr);
-}
-
-void Triangle::capsule_createTextureImage()
-{
-	int texWidth, texHeight, texChannels;
-	stbi_uc* pixels = stbi_load(CAPSULE_TEXTURE_PATH.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-	VkDeviceSize imageSize = texWidth * texHeight * 4;
-	capsule_mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
-
-	if (!pixels) {
-		throw std::runtime_error("failed to load texture image!");
-	}
-
-	VkBuffer stagingBuffer;
-	VkDeviceMemory stagingBufferMemory;
-	createBuffer(imageSize,
-		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-		stagingBuffer,
-		stagingBufferMemory);
-
-	void* data;
-	vkMapMemory(device, stagingBufferMemory, 0, imageSize, 0, &data);
-	memcpy(data, pixels, static_cast<size_t>(imageSize));
-	vkUnmapMemory(device, stagingBufferMemory);
-
-	stbi_image_free(pixels);
-
-	createImage(texWidth,
-		texHeight, capsule_mipLevels,
-		VK_SAMPLE_COUNT_1_BIT,
-		VK_FORMAT_R8G8B8A8_SRGB,
-		VK_IMAGE_TILING_OPTIMAL,
-		VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		capsule_textureImage,
-		capsule_textureImageMemory);
-
-	transitionImageLayout(capsule_textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, capsule_mipLevels);
-	copyBufferToImage(stagingBuffer, capsule_textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
-	//transitioned to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL while generating mipmaps
-
-	vkDestroyBuffer(device, stagingBuffer, nullptr);
-	vkFreeMemory(device, stagingBufferMemory, nullptr);
-
-	generateMipmaps(capsule_textureImage, VK_FORMAT_R8G8B8A8_SRGB, texWidth, texHeight, capsule_mipLevels);
-}
-
-void Triangle::capsule_createTextureImageView()
-{
-	capsule_textureImageView = createImageView(capsule_textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, capsule_mipLevels);
-}
-
-/// <summary>
-/// 创建描述符集
-/// </summary>
-void Triangle::capsule_createDescriptorSets()
-{
-	std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptorSetLayout);
-	VkDescriptorSetAllocateInfo allocInfo{};
-	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	allocInfo.descriptorPool = descriptorPool;
-	allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
-	allocInfo.pSetLayouts = layouts.data();
-
-	capsule_descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
-	if (vkAllocateDescriptorSets(device, &allocInfo, capsule_descriptorSets.data()) != VK_SUCCESS) {
-		throw std::runtime_error("failed to allocate descriptor sets!");
-	}
-
-	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-		VkDescriptorBufferInfo bufferInfo{};
-		bufferInfo.buffer = capsule_uniformBuffers[i];
-		bufferInfo.offset = 0;
-		bufferInfo.range = sizeof(UniformBufferObject);
-
-		VkDescriptorImageInfo imageInfo{};
-		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		imageInfo.imageView = capsule_textureImageView;
-		imageInfo.sampler = capsule_textureSampler;
-
-		std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
-
-		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[0].dstSet = capsule_descriptorSets[i];
-		descriptorWrites[0].dstBinding = 0;
-		descriptorWrites[0].dstArrayElement = 0;
-		descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		descriptorWrites[0].descriptorCount = 1;
-		descriptorWrites[0].pBufferInfo = &bufferInfo;
-
-		descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[1].dstSet = capsule_descriptorSets[i];
-		descriptorWrites[1].dstBinding = 1;
-		descriptorWrites[1].dstArrayElement = 0;
-		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		descriptorWrites[1].descriptorCount = 1;
-		descriptorWrites[1].pImageInfo = &imageInfo;
-
-		vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
-
-		/*VkWriteDescriptorSet descriptorWrite{};
-		descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrite.dstSet = descriptorSets[i];
-		descriptorWrite.dstBinding = 0;
-		descriptorWrite.dstArrayElement = 0;
-		descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		descriptorWrite.descriptorCount = 1;
-		descriptorWrite.pBufferInfo = &bufferInfo;
-
-		vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);*/
-	}
 }
 
 /// <summary>
@@ -1567,132 +998,8 @@ void Triangle::createDescriptorPool()
 /// </summary>
 void Triangle::createDescriptorSets()
 {
-	std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptorSetLayout);
-	VkDescriptorSetAllocateInfo allocInfo{};
-	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	allocInfo.descriptorPool = descriptorPool;
-	allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
-	allocInfo.pSetLayouts = layouts.data();
-
-	descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
-	if (vkAllocateDescriptorSets(device, &allocInfo, descriptorSets.data()) != VK_SUCCESS) {
-		throw std::runtime_error("failed to allocate descriptor sets!");
-	}
-
-	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-		VkDescriptorBufferInfo bufferInfo{};
-		bufferInfo.buffer = uniformBuffers[i];
-		bufferInfo.offset = 0;
-		bufferInfo.range = sizeof(UniformBufferObject);
-
-		VkDescriptorImageInfo imageInfo{};
-		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		imageInfo.imageView = textureImageView;
-		imageInfo.sampler = textureSampler;
-
-		std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
-
-		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[0].dstSet = descriptorSets[i];
-		descriptorWrites[0].dstBinding = 0;
-		descriptorWrites[0].dstArrayElement = 0;
-		descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		descriptorWrites[0].descriptorCount = 1;
-		descriptorWrites[0].pBufferInfo = &bufferInfo;
-
-		descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[1].dstSet = descriptorSets[i];
-		descriptorWrites[1].dstBinding = 1;
-		descriptorWrites[1].dstArrayElement = 0;
-		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		descriptorWrites[1].descriptorCount = 1;
-		descriptorWrites[1].pImageInfo = &imageInfo;
-
-		vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
-
-		/*VkWriteDescriptorSet descriptorWrite{};
-		descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrite.dstSet = descriptorSets[i];
-		descriptorWrite.dstBinding = 0;
-		descriptorWrite.dstArrayElement = 0;
-		descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		descriptorWrite.descriptorCount = 1;
-		descriptorWrite.pBufferInfo = &bufferInfo;
-
-		vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);*/
-	}
-
-}
-
-/// <summary>
-/// 缓冲区的复制
-/// </summary>
-/// <param name="srcBuffer"></param>
-/// <param name="dstBuffer"></param>
-/// <param name="size"></param>
-void Triangle::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
-{
-	VkCommandBuffer commandBuffer = beginSingleTimeCommands();
-
-	VkBufferCopy copyRegion{};
-	copyRegion.size = size;
-	vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
-
-	endSingleTimeCommands(commandBuffer);
-}
-
-/// <summary>
-/// 缓冲区的创建
-/// </summary>
-/// <param name="size"></param>
-/// <param name="usage"></param>
-/// <param name="properties"></param>
-/// <param name="buffer"></param>
-/// <param name="bufferMemory"></param>
-void Triangle::createBuffer(VkDeviceSize size,
-	VkBufferUsageFlags usage,
-	VkMemoryPropertyFlags properties,
-	VkBuffer& buffer,
-	VkDeviceMemory& bufferMemory)
-{
-	VkBufferCreateInfo bufferInfo{};
-	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	bufferInfo.size = size;
-	bufferInfo.usage = usage;
-	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-	if (vkCreateBuffer(device, &bufferInfo, nullptr, &buffer) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create buffer!");
-	}
-
-	VkMemoryRequirements memRequirements;
-	vkGetBufferMemoryRequirements(device, buffer, &memRequirements);
-
-	VkMemoryAllocateInfo allocInfo{};
-	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	allocInfo.allocationSize = memRequirements.size;
-	allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
-
-	if (vkAllocateMemory(device, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS) {
-		throw std::runtime_error("failed to allocate buffer memory!");
-	}
-
-	vkBindBufferMemory(device, buffer, bufferMemory, 0);
-}
 
 
-uint32_t Triangle::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
-{
-	VkPhysicalDeviceMemoryProperties memProperties;
-	vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
-
-	for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
-		if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
-			return i;
-		}
-	}
-
-	throw std::runtime_error("failed to find suitable memory type!");
 }
 
 /// <summary>
@@ -1769,7 +1076,7 @@ void Triangle::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
 		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 
 		vkCmdBindIndexBuffer(commandBuffer, capsule_indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &capsule_descriptorSets[currentFrame], 0, nullptr);
+		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &m_texture.descriptorSet, 0, nullptr);
 		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(capsule_indices.size()), 1, 0, 0, 0);
 	}
 
@@ -1779,7 +1086,7 @@ void Triangle::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
 		VkDeviceSize offsets[] = { 0 };
 		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 		vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
+		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &m_texture1.descriptorSet, 0, nullptr);
 		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 		imguiRender(commandBuffer);
 	}
@@ -2247,24 +1554,6 @@ void Triangle::cleanUp()
 	clearImgui();
 	//旧的交换链清理
 	cleanupSwapChain();
-	//清理纹理采样
-	vkDestroySampler(device, textureSampler, nullptr);
-	//清理纹理图像视图
-	vkDestroyImageView(device, textureImageView, nullptr);
-	// 清理纹理图像
-	vkDestroyImage(device, textureImage, nullptr);
-
-	//清理纹理采样
-	vkDestroySampler(device, capsule_textureSampler, nullptr);
-	//清理纹理图像视图
-	vkDestroyImageView(device, capsule_textureImageView, nullptr);
-	// 清理纹理图像
-	vkDestroyImage(device, capsule_textureImage, nullptr);
-
-	vkFreeMemory(device, textureImageMemory, nullptr);
-
-	vkFreeMemory(device, capsule_textureImageMemory, nullptr);
-
 
 	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
 		vkDestroyBuffer(device, uniformBuffers[i], nullptr);
@@ -2276,9 +1565,14 @@ void Triangle::cleanUp()
 
 	vkDestroyDescriptorPool(device, descriptorPool, nullptr);
 
-	vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+	m_texture.Destroy();
+	m_texture1.Destroy();
 
+	m_texture.Free();
+	m_texture1.Free();
 
+	vkDestroyDescriptorSetLayout(device, uniformDescriptorSetLayout, nullptr);
+	vkDestroyDescriptorSetLayout(device, textureDescriptorSetLayout, nullptr);
 	// 同步对象
 	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
 		vkDestroySemaphore(device, renderFinishedSemaphores[i], nullptr);
@@ -2350,31 +1644,6 @@ void Triangle::initImgui()
 	// Setup Platform/Renderer bindings
 
 	QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
-
-	//// 创建新的描述符池
-	//VkDescriptorPoolSize pool_sizes[] =
-	//{
-	//	{ VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
-	//	{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
-	//	{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
-	//	{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
-	//	{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
-	//	{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
-	//	{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
-	//	{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
-	//	{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
-	//	{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
-	//	{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
-	//};
-
-	//VkDescriptorPoolCreateInfo pool_info = {};
-	//pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	//pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-	//pool_info.maxSets = 1000 * IM_ARRAYSIZE(pool_sizes);
-	//pool_info.poolSizeCount = (uint32_t)IM_ARRAYSIZE(pool_sizes);
-	//pool_info.pPoolSizes = pool_sizes;
-	//VkResult err = vkCreateDescriptorPool(device, &pool_info, nullptr, &g_DescriptorPool);
-
 
 	ImGui_ImplGlfw_InitForVulkan(window, true);
 	ImGui_ImplVulkan_InitInfo init_info = {};
