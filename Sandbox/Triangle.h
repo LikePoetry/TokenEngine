@@ -30,6 +30,7 @@
 #include <stb_image.h>
 
 #include "Texture.h"
+#include "Model.h"
 
 		/// Return the smaller of two values.
 template <class T, class U>
@@ -51,47 +52,6 @@ struct UniformBufferObject
 	alignas(16) glm::mat4 view;
 	alignas(16) glm::mat4 proj;
 };
-
-// 顶点数据结构体
-struct Vertex
-{
-	glm::vec3 pos;
-	glm::vec3 color;
-	glm::vec2 texCoord;
-
-	static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions() {
-		std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{};
-		attributeDescriptions[0].binding = 0;
-		attributeDescriptions[0].location = 0;
-		attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-		attributeDescriptions[0].offset = offsetof(Vertex, pos);
-
-		attributeDescriptions[1].binding = 0;
-		attributeDescriptions[1].location = 1;
-		attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-		attributeDescriptions[1].offset = offsetof(Vertex, color);
-
-		attributeDescriptions[2].binding = 0;
-		attributeDescriptions[2].location = 2;
-		attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
-		attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
-		return attributeDescriptions;
-	}
-
-	// 结构体数据的绑定说明
-	static VkVertexInputBindingDescription getBindingDescription() {
-		VkVertexInputBindingDescription bindingDescription{};
-		bindingDescription.binding = 0;
-		bindingDescription.stride = sizeof(Vertex);
-		bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-		return bindingDescription;
-	}
-
-	bool operator==(const Vertex& other) const {
-		return pos == other.pos && color == other.color && texCoord == other.texCoord;
-	}
-};
-
 
 struct QueueFamilyIndices {
 	std::optional<uint32_t> graphicsFamily;
@@ -167,21 +127,10 @@ private:
 	//创建同步对象
 	void createSyncObjects();
 
-	// 载入模型
-	void loadModel();
-	void capsule_loadModel();
-	void capsule_createVertexBuffer();
-	void capsule_createIndexBuffer();
 	void capsule_createUniformBuffers();
 	void capsule_updateUniformBuffer(uint32_t currentImage);
 
 
-
-
-	//创建顶点缓冲
-	void createVertexBuffer();
-	//创建顶点索引缓冲区
-	void createIndexBuffer();
 	// 创建统一描述符缓冲区
 	void createUniformBuffers();
 
@@ -265,14 +214,6 @@ private:
 	// 栅栏
 	std::vector<VkFence> inFlightFences;
 
-	// 顶点缓冲区
-	VkBuffer vertexBuffer;
-	VkDeviceMemory vertexBufferMemory;
-
-	// 顶点索引缓冲区
-	VkBuffer indexBuffer;
-	VkDeviceMemory indexBufferMemory;
-
 	// 描述符缓冲区
 	std::vector<VkBuffer> uniformBuffers;
 	std::vector<VkDeviceMemory> uniformBuffersMemory;
@@ -291,6 +232,9 @@ private:
 	std::vector<VkDescriptorSet> descriptorSets;
 	Texture m_texture;
 	Texture m_texture1;
+
+	Model model;
+	Model model1;
 
 
 public:
@@ -315,28 +259,6 @@ private:
 	// 用于同时渲染多个帧
 	uint32_t currentFrame = 0;
 
-	//// 顶点信息
-	//const std::vector<Vertex> vertices = {
-	// {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-	//{{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-	//{{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-	//{{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
-
-	//{{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-	//{{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-	//{{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-	//{{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}
-	//};
-
-	//// 顶点索引信息
-	//const std::vector<uint16_t> indices = {
-	//0, 1, 2, 2, 3, 0,
-	//4, 5, 6, 6, 7, 4
-	//};
-
-	std::vector<Vertex> vertices;
-	std::vector<uint32_t> indices;
-
 	//const std::string MODEL_PATH = "../models/viking_room.obj";
 	//const std::string TEXTURE_PATH = "../textures/viking_room.png";
 
@@ -345,28 +267,18 @@ private:
 
 	//const std::string CAPSULE_MODEL_PATH = "../models/CrashCar.obj";
 	//const std::string CAPSULE_TEXTURE_PATH = "../textures/CrashCar.png";
-	std::vector<Vertex> capsule_vertices;
-	std::vector<uint32_t> capsule_indices;
-	// 顶点缓冲区
-	VkBuffer capsule_vertexBuffer;
-	VkDeviceMemory capsule_vertexBufferMemory;
 
-	// 顶点索引缓冲区
-	VkBuffer capsule_indexBuffer;
-	VkDeviceMemory capsule_indexBufferMemory;
 
 	std::vector<VkBuffer> capsule_uniformBuffers;
 	std::vector<VkDeviceMemory> capsule_uniformBuffersMemory;
 	std::vector<void*> capsule_uniformBuffersMapped;
+	std::vector<VkDescriptorSet> capsule_descriptorSets;
 
 	const std::string MODEL_PATH = "../models/CrashCar.obj";
 	const std::string TEXTURE_PATH = "../textures/CrashCar.png";
 
 	// 多重采样
 	VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT;
-
-
-
 
 public:
 	void initImgui();
