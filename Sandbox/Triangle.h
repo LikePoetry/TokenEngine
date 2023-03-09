@@ -288,7 +288,7 @@ private:
 	VkDeviceMemory depthImageMemory;
 	VkImageView depthImageView;
 
-
+	std::vector<VkDescriptorSet> descriptorSets;
 	Texture m_texture;
 	Texture m_texture1;
 
@@ -409,5 +409,6 @@ public:
 	VkQueue graphicsQueue;
 	VkDescriptorPool descriptorPool;
 	VkCommandPool commandPool;
-	VkDescriptorSetLayout descriptorSetLayout;
+	VkDescriptorSetLayout uniformDescriptorSetLayout;
+	VkDescriptorSetLayout textureDescriptorSetLayout;
 };
