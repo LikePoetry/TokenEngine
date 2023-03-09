@@ -544,11 +544,18 @@ void Triangle::createGraphicsPipeline()
 
 	VkDescriptorSetLayout SetLayouts[] = { uniformDescriptorSetLayout, textureDescriptorSetLayout };
 
+	VkPushConstantRange psRange;
+	psRange.offset = 0;
+	psRange.size = sizeof(glm::vec3);
+	psRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
 	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	pipelineLayoutInfo.setLayoutCount = 2;
 	pipelineLayoutInfo.pSetLayouts = SetLayouts;
+	pipelineLayoutInfo.pushConstantRangeCount = 1;
+	pipelineLayoutInfo.pPushConstantRanges = &psRange;
+
 
 	if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create pipeline layout!");
@@ -587,10 +594,14 @@ void Triangle::createGraphicsPipeline()
 
 	VkPipelineShaderStageCreateInfo color_shaderStages[] = { vertShaderStageInfo, color_fragShaderStageInfo };
 
+	
+
 	VkPipelineLayoutCreateInfo color_pipelineLayoutInfo{};
 	color_pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	color_pipelineLayoutInfo.setLayoutCount = 1;
 	color_pipelineLayoutInfo.pSetLayouts = &uniformDescriptorSetLayout;
+	color_pipelineLayoutInfo.pushConstantRangeCount = 1;
+	color_pipelineLayoutInfo.pPushConstantRanges = &psRange;
 
 	if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &color_pipelineLayout) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create pipeline layout!");
@@ -960,6 +971,7 @@ void Triangle::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
 		scissor.extent = swapChainExtent;
 		vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
+		vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::vec3), &faceColor);
 		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
 		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &m_texture.descriptorSet, 0, nullptr);
 
@@ -969,8 +981,10 @@ void Triangle::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
 	{
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, color_graphicsPipeline);
 
+		vkCmdPushConstants(commandBuffer, color_pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::vec3), &faceColor);
 		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, color_pipelineLayout, 0, 1, &capsule_descriptorSets[currentFrame], 0, nullptr);
 		//vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &m_texture1.descriptorSet, 0, nullptr);
+
 		model1.Render(commandBuffer);
 		imguiRender(commandBuffer);
 	}
@@ -1589,6 +1603,12 @@ void Triangle::imguiRender(VkCommandBuffer commandBuffer)
 	PorpertyTransform("Traget", mCamera_Target, itemWidth);
 	ImGui::SameLine();
 	PorpertyTransform("Up", mCamera_Up, itemWidth);
+
+	ImGui::ColorEdit4("Color", &colorEditor.r);
+
+	faceColor.r = colorEditor.r;
+	faceColor.g = colorEditor.g;
+	faceColor.b = colorEditor.b;
 
 	ImGui::Columns(1);
 	ImGui::Separator();

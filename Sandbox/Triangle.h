@@ -63,6 +63,12 @@ struct QueueFamilyIndices {
 	}
 };
 
+struct Color4f
+{
+	// normalized [0-1]
+	float r, g, b, a;
+};
+
 // 交换链支持详情
 struct SwapChainSupportDetails
 {
@@ -319,6 +325,10 @@ public:
 	float m_LastFrameTime = 0.0f;
 	float camerSpeed = 20.0f;
 
+	glm::vec3 faceColor = glm::vec3(1.0f, 0.0f, 0.0f);
+	Color4f colorEditor;
+
+
 public:
 	// 全局变量
 	VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
@@ -328,4 +338,7 @@ public:
 	VkCommandPool commandPool;
 	VkDescriptorSetLayout uniformDescriptorSetLayout;
 	VkDescriptorSetLayout textureDescriptorSetLayout;
+
+
+
 };
