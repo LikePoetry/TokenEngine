@@ -22,9 +22,13 @@ vendor 文件夹下内容<br>
 2、打开 TokenEngine.sln;<br>
 
 若安装的是VS2019 修改 Run_VS2022.bat文件，<br>
-替换<'''call Tools\premake5.exe vs2022'''> 为 <'''call Tools\premake5.exe vs2019'''><br>
+替换<call Tools\premake5.exe vs2022> 为 <call Tools\premake5.exe vs2019><br>
 
 
 ##  外部项目使用学习
 
+//视频教程地址: https://www.youtube.com/watch?v=Y9U9IE0gVHA&list=PL8327DO66nu9qYVKLDmdLW_84-yE4auCR
 [Little Vulkan Engine]  (https://github.com/blurrypiano/littleVulkanEngine)
+
+//视频教程地址: https://www.youtube.com/watch?v=6isbso_GmUk&list=PLxxEkfi3SCmzo5i-7lYAkDuEZYSnOD5hq
+[Vulkan-Tutorial-Advanced] (https://github.com/Mori-TM/Vulkan-Tutorial-Advanced)
