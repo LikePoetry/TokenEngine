@@ -575,8 +575,55 @@ void Triangle::createGraphicsPipeline()
 		throw std::runtime_error("failed to create graphics pipeline!");
 	}
 
+	//创建另一条管线，在此条管线的基础上进行修改
+	auto color_fragShaderCode = readFile("../shaders/frag_color.spv");
+	VkShaderModule color_fragShaderModule = createShaderModule(color_fragShaderCode);
+
+	VkPipelineShaderStageCreateInfo color_fragShaderStageInfo{};
+	color_fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	color_fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+	color_fragShaderStageInfo.module = color_fragShaderModule;
+	color_fragShaderStageInfo.pName = "main";
+
+	VkPipelineShaderStageCreateInfo color_shaderStages[] = { vertShaderStageInfo, color_fragShaderStageInfo };
+
+	VkPipelineLayoutCreateInfo color_pipelineLayoutInfo{};
+	color_pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	color_pipelineLayoutInfo.setLayoutCount = 1;
+	color_pipelineLayoutInfo.pSetLayouts = &uniformDescriptorSetLayout;
+
+	if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &color_pipelineLayout) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create pipeline layout!");
+	}
+
+	VkGraphicsPipelineCreateInfo color_pipelineInfo{};
+	color_pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+	color_pipelineInfo.stageCount = 2;
+	color_pipelineInfo.pStages = color_shaderStages;
+	color_pipelineInfo.pVertexInputState = &vertexInputInfo;
+	color_pipelineInfo.pInputAssemblyState = &inputAssembly;
+	color_pipelineInfo.pViewportState = &viewportState;
+	color_pipelineInfo.pRasterizationState = &rasterizer;
+	color_pipelineInfo.pMultisampleState = &multisampling;
+	color_pipelineInfo.pDepthStencilState = &depthStencil;
+	color_pipelineInfo.pColorBlendState = &colorBlending;
+	color_pipelineInfo.pDynamicState = &dynamicState;
+	color_pipelineInfo.layout = color_pipelineLayout;
+	color_pipelineInfo.renderPass = renderPass;
+	color_pipelineInfo.subpass = 0;
+	color_pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+
+	if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &color_pipelineInfo, nullptr, &color_graphicsPipeline) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create graphics pipeline!");
+	}
+
+
+
+
 	vkDestroyShaderModule(device, fragShaderModule, nullptr);
 	vkDestroyShaderModule(device, vertShaderModule, nullptr);
+	vkDestroyShaderModule(device, color_fragShaderModule, nullptr);
+
 }
 
 /// <summary>
@@ -920,10 +967,10 @@ void Triangle::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
 	}
 
 	{
-		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, color_graphicsPipeline);
 
-		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &capsule_descriptorSets[currentFrame], 0, nullptr);
-		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &m_texture1.descriptorSet, 0, nullptr);
+		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, color_pipelineLayout, 0, 1, &capsule_descriptorSets[currentFrame], 0, nullptr);
+		//vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &m_texture1.descriptorSet, 0, nullptr);
 		model1.Render(commandBuffer);
 		imguiRender(commandBuffer);
 	}
@@ -1506,7 +1553,6 @@ void Triangle::clearImgui()
 	ImGui_ImplVulkan_Shutdown();
 	ImGui_ImplGlfw_Shutdown();
 	ImGui::DestroyContext();
-
 }
 
 void Triangle::imguiRender(VkCommandBuffer commandBuffer)
@@ -1633,6 +1679,26 @@ void Triangle::cameraMove(Timestep ts)
 	if (keys[GLFW_KEY_D])
 	{
 		mCamera_Position += glm::normalize(glm::cross(mCamera_Target, mCamera_Up)) * (camerSpeed * ts);
+	}
+
+	if (keys[GLFW_KEY_UP])
+	{
+		mCamera_Target.y += camerSpeed * ts;
+	}
+
+	if (keys[GLFW_KEY_DOWN])
+	{
+		mCamera_Target.y -= camerSpeed * ts;
+	}
+
+	if (keys[GLFW_KEY_LEFT])
+	{
+		mCamera_Target.x += camerSpeed * ts;
+	}
+
+	if (keys[GLFW_KEY_RIGHT])
+	{
+		mCamera_Target.x -= camerSpeed * ts;
 	}
 }
 

@@ -236,6 +236,11 @@ private:
 	Model model;
 	Model model1;
 
+	// 渲染管线布局
+	VkPipelineLayout color_pipelineLayout;
+	// 图形管线
+	VkPipeline color_graphicsPipeline;
+
 
 public:
 	bool framebufferResized = false;
