@@ -286,7 +286,7 @@ private:
 	//const std::string MODEL_PATH = "../models/viking_room.obj";
 	//const std::string TEXTURE_PATH = "../textures/viking_room.png";
 
-	const std::string CAPSULE_MODEL_PATH = "../models/flat_vase.obj";
+	const std::string CAPSULE_MODEL_PATH = "../models/smooth_vase.obj";
 	const std::string CAPSULE_TEXTURE_PATH = "../textures/Capsule.jpg";
 
 	//const std::string CAPSULE_MODEL_PATH = "../models/CrashCar.obj";
@@ -326,7 +326,7 @@ public:
 	glm::vec3 m_Scale = glm::vec3(1);
 
 	//glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f)
-	glm::vec3 mCamera_Position = glm::vec3(0.0f, 0.0f, 3.0f);
+	glm::vec3 mCamera_Position = glm::vec3(0.0f, 0.0f, 1.0f);
 	glm::vec3 mCamera_Target = glm::vec3(0.0f, 0.0f, -1.0f);
 	glm::vec3 mCamera_Up = glm::vec3(0.0f, -1.0f, 0.0f);
 
@@ -336,10 +336,10 @@ public:
 	bool keys[1024];
 
 	float m_LastFrameTime = 0.0f;
-	float camerSpeed = 20.0f;
+	float camerSpeed = 1.0f;
 
 	Color4f colorEditor = Color4f(1.0f, 0.0f, 0.0f, 0.0f);
-	float lightDirection[3];
+	float lightDirection[3] = { 0,0,1 };
 
 
 	PushConstant pushConstant;
