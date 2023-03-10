@@ -54,12 +54,26 @@ void Model::LoadModel(const char* Path)
 					attrib.vertices[3 * index.vertex_index + 2]
 			};
 
-			vertex.texCoord = {
-				attrib.texcoords[2 * index.texcoord_index + 0],
-				1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
+			vertex.color = {
+			attrib.colors[3 * index.vertex_index + 0],
+			attrib.colors[3 * index.vertex_index + 1],
+			attrib.colors[3 * index.vertex_index + 2],
 			};
 
-			vertex.color = { 1.0f, 1.0f, 1.0f };
+			if (index.normal_index >= 0) {
+				vertex.normal = {
+					attrib.normals[3 * index.normal_index + 0],
+					attrib.normals[3 * index.normal_index + 1],
+					attrib.normals[3 * index.normal_index + 2],
+				};
+			}
+
+			if (index.texcoord_index >= 0) {
+				vertex.uv = {
+					attrib.texcoords[2 * index.texcoord_index + 0],
+					attrib.texcoords[2 * index.texcoord_index + 1],
+				};
+			}
 
 			if (uniqueVertices.count(vertex) == 0) {
 				uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());

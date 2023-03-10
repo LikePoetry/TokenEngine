@@ -65,8 +65,21 @@ struct QueueFamilyIndices {
 
 struct Color4f
 {
+	Color4f(float cr, float cg, float cb, float ca)
+	{
+		r = cr;
+		g = cg;
+		b = cb;
+		a = ca;
+	}
 	// normalized [0-1]
 	float r, g, b, a;
+};
+
+struct PushConstant
+{
+	glm::vec3 alignas(16) color;
+	glm::vec3 alignas(16) direction;
 };
 
 // 交换链支持详情
@@ -80,7 +93,7 @@ struct SwapChainSupportDetails
 namespace std {
 	template<> struct hash<Vertex> {
 		size_t operator()(Vertex const& vertex) const {
-			return ((hash<glm::vec3>()(vertex.pos) ^ (hash<glm::vec3>()(vertex.color) << 1)) >> 1) ^ (hash<glm::vec2>()(vertex.texCoord) << 1);
+			return (((hash<glm::vec3>()(vertex.pos) ^ (hash<glm::vec3>()(vertex.color) << 1)) >> 1) ^ (hash<glm::vec3>()(vertex.color) << 1) >> 1) ^ (hash<glm::vec2>()(vertex.uv) << 1);
 		}
 	};
 }
@@ -273,7 +286,7 @@ private:
 	//const std::string MODEL_PATH = "../models/viking_room.obj";
 	//const std::string TEXTURE_PATH = "../textures/viking_room.png";
 
-	const std::string CAPSULE_MODEL_PATH = "../models/Capsule.obj";
+	const std::string CAPSULE_MODEL_PATH = "../models/flat_vase.obj";
 	const std::string CAPSULE_TEXTURE_PATH = "../textures/Capsule.jpg";
 
 	//const std::string CAPSULE_MODEL_PATH = "../models/CrashCar.obj";
@@ -315,7 +328,7 @@ public:
 	//glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f)
 	glm::vec3 mCamera_Position = glm::vec3(0.0f, 0.0f, 3.0f);
 	glm::vec3 mCamera_Target = glm::vec3(0.0f, 0.0f, -1.0f);
-	glm::vec3 mCamera_Up = glm::vec3(0.0f, 1.0f, 0.0f);
+	glm::vec3 mCamera_Up = glm::vec3(0.0f, -1.0f, 0.0f);
 
 
 	float m_aspect = 45.0f;
@@ -325,9 +338,11 @@ public:
 	float m_LastFrameTime = 0.0f;
 	float camerSpeed = 20.0f;
 
-	glm::vec3 faceColor = glm::vec3(1.0f, 0.0f, 0.0f);
-	Color4f colorEditor;
+	Color4f colorEditor = Color4f(1.0f, 0.0f, 0.0f, 0.0f);
+	float lightDirection[3];
 
+
+	PushConstant pushConstant;
 
 public:
 	// 全局变量

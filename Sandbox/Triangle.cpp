@@ -146,8 +146,8 @@ void Triangle::initVulkan()
 
 	createCommandPool();
 
-	model.SetTriangle(this);
-	model.Load(MODEL_PATH.c_str());
+	//model.SetTriangle(this);
+	//model.Load(MODEL_PATH.c_str());
 
 	createUniformBuffers();
 	//另一个模型
@@ -546,7 +546,7 @@ void Triangle::createGraphicsPipeline()
 
 	VkPushConstantRange psRange;
 	psRange.offset = 0;
-	psRange.size = sizeof(glm::vec3);
+	psRange.size = sizeof(PushConstant);
 	psRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
@@ -594,7 +594,7 @@ void Triangle::createGraphicsPipeline()
 
 	VkPipelineShaderStageCreateInfo color_shaderStages[] = { vertShaderStageInfo, color_fragShaderStageInfo };
 
-	
+
 
 	VkPipelineLayoutCreateInfo color_pipelineLayoutInfo{};
 	color_pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -971,17 +971,17 @@ void Triangle::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
 		scissor.extent = swapChainExtent;
 		vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-		vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::vec3), &faceColor);
-		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
-		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &m_texture.descriptorSet, 0, nullptr);
+		//vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::vec3), &faceColor);
+		//vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
+		//vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &m_texture.descriptorSet, 0, nullptr);
 
-		model.Render(commandBuffer);
+		/*model.Render(commandBuffer);*/
 	}
 
 	{
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, color_graphicsPipeline);
 
-		vkCmdPushConstants(commandBuffer, color_pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::vec3), &faceColor);
+		vkCmdPushConstants(commandBuffer, color_pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushConstant), &pushConstant);
 		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, color_pipelineLayout, 0, 1, &capsule_descriptorSets[currentFrame], 0, nullptr);
 		//vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &m_texture1.descriptorSet, 0, nullptr);
 
@@ -1490,7 +1490,7 @@ void Triangle::cleanUp()
 	// 渲染通道
 	vkDestroyRenderPass(device, renderPass, nullptr);
 
-	model.Destroy();
+	//model.Destroy();
 
 	model1.Destroy();
 
@@ -1606,9 +1606,10 @@ void Triangle::imguiRender(VkCommandBuffer commandBuffer)
 
 	ImGui::ColorEdit4("Color", &colorEditor.r);
 
-	faceColor.r = colorEditor.r;
-	faceColor.g = colorEditor.g;
-	faceColor.b = colorEditor.b;
+	ImGui::InputFloat3("Direction", &lightDirection[0]);
+
+	pushConstant.color = glm::vec3(colorEditor.r, colorEditor.g, colorEditor.b);
+	pushConstant.direction = glm::vec3(lightDirection[0], lightDirection[1], lightDirection[2]);
 
 	ImGui::Columns(1);
 	ImGui::Separator();
