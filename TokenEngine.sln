@@ -11,6 +11,10 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ImGui", "vendor\imgui\ImGui
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LittleVulkanEditor", "LittleVulkanEditor\LittleVulkanEditor.vcxproj", "{4BA2F226-3786-B37C-A0E6-ADCF8CE99DFE}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Lumos", "Lumos\Lumos.vcxproj", "{354DA00D-A161-C8BE-6AE3-6B1ED6B6C4EF}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "VulkanTutorial", "VulkanTutorial\VulkanTutorial.vcxproj", "{8A56F4FE-7624-E804-5FB8-582B4B25C469}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -33,6 +37,14 @@ Global
 		{4BA2F226-3786-B37C-A0E6-ADCF8CE99DFE}.Debug|x64.Build.0 = Debug|x64
 		{4BA2F226-3786-B37C-A0E6-ADCF8CE99DFE}.Release|x64.ActiveCfg = Release|x64
 		{4BA2F226-3786-B37C-A0E6-ADCF8CE99DFE}.Release|x64.Build.0 = Release|x64
+		{354DA00D-A161-C8BE-6AE3-6B1ED6B6C4EF}.Debug|x64.ActiveCfg = Debug|x64
+		{354DA00D-A161-C8BE-6AE3-6B1ED6B6C4EF}.Debug|x64.Build.0 = Debug|x64
+		{354DA00D-A161-C8BE-6AE3-6B1ED6B6C4EF}.Release|x64.ActiveCfg = Release|x64
+		{354DA00D-A161-C8BE-6AE3-6B1ED6B6C4EF}.Release|x64.Build.0 = Release|x64
+		{8A56F4FE-7624-E804-5FB8-582B4B25C469}.Debug|x64.ActiveCfg = Debug|x64
+		{8A56F4FE-7624-E804-5FB8-582B4B25C469}.Debug|x64.Build.0 = Debug|x64
+		{8A56F4FE-7624-E804-5FB8-582B4B25C469}.Release|x64.ActiveCfg = Release|x64
+		{8A56F4FE-7624-E804-5FB8-582B4B25C469}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
