@@ -7,51 +7,56 @@
 #include <unordered_map>
 #include <unordered_set>
 
+const std::vector<const char*> deviceExtensions = {
+	VK_KHR_SWAPCHAIN_EXTENSION_NAME
+};
+
 namespace Lumos
 {
 	class VKPhysicalDevice
 	{
-		public:
-			VKPhysicalDevice();
-			~VKPhysicalDevice();
+	public:
+		VKPhysicalDevice();
+		~VKPhysicalDevice();
 
 
-			struct PhysicalDeviceInfo
-			{
-				uint32_t Memory;
-				uint32_t VendorID;
-				std::string Driver;
-				std::string APIVersion;
-				std::string Vendor;
-				std::string Name;
+		struct PhysicalDeviceInfo
+		{
+			uint32_t Memory;
+			uint32_t VendorID;
+			std::string Driver;
+			std::string APIVersion;
+			std::string Vendor;
+			std::string Name;
 
-				VkPhysicalDevice Handle;
-			};
+			VkPhysicalDevice Handle;
+		};
 
-			bool IsExtensionSupported(const std::string& extensionName) const;
-			uint32_t GetMemoryTypeIndex(uint32_t typeBits, VkMemoryPropertyFlags properties) const;
+		void Init();
 
-			PhysicalDeviceInfo GetInfo(VkPhysicalDevice device);
+		bool IsExtensionSupported(const std::string& extensionName) const;
 
-			VkPhysicalDevice GetHandle() const
-			{
-				return m_Handle;
-			}
+		PhysicalDeviceInfo GetInfo(VkPhysicalDevice device);
 
-			int32_t GetGraphicsQueueFamilyIndex()
-			{
-				return m_QueueFamilyIndices.Graphics;
-			}
+		VkPhysicalDevice GetHandle() const
+		{
+			return m_Handle;
+		}
 
-			VkPhysicalDeviceProperties GetProperties() const
-			{
-				return m_PhysicalDeviceProperties;
-			}
+		int32_t GetGraphicsQueueFamilyIndex()
+		{
+			return m_QueueFamilyIndices.Graphics;
+		}
 
-			VkPhysicalDeviceMemoryProperties GetMemoryProperties() const
-			{
-				return m_MemoryProperties;
-			}
+		VkPhysicalDeviceProperties GetProperties() const
+		{
+			return m_PhysicalDeviceProperties;
+		}
+
+		VkPhysicalDeviceMemoryProperties GetMemoryProperties() const
+		{
+			return m_MemoryProperties;
+		}
 
 	private:
 
