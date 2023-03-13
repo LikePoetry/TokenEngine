@@ -7,10 +7,6 @@
 #include <unordered_map>
 #include <unordered_set>
 
-const std::vector<const char*> deviceExtensions = {
-	VK_KHR_SWAPCHAIN_EXTENSION_NAME
-};
-
 namespace Lumos
 {
 	class VKPhysicalDevice

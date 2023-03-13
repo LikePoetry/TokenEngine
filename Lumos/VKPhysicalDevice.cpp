@@ -7,8 +7,7 @@ namespace Lumos
 {
 	VKPhysicalDevice::VKPhysicalDevice()
 	{
-
-
+		Init();
 	}
 
 	VKPhysicalDevice::~VKPhysicalDevice()

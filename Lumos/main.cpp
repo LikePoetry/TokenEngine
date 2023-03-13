@@ -15,6 +15,7 @@
 
 #include "VKContext.h"
 #include "VKPhysicalDevice.h"
+#include "VKDevice.h"
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
@@ -61,9 +62,6 @@ private:
 
 	VkDevice device;
 
-	VkQueue graphicsQueue;
-	VkQueue presentQueue;
-
 	VkSwapchainKHR swapChain;
 	std::vector<VkImage> swapChainImages;
 	VkFormat swapChainImageFormat;
@@ -86,7 +84,7 @@ private:
 	bool framebufferResized = false;
 
 	Lumos::VKContext m_VKContext;
-	Lumos::VKPhysicalDevice m_VKPhysicalDevice;
+	Lumos::VKDevice m_VKDevice;
 
 
 	void initWindow() {
@@ -107,7 +105,6 @@ private:
 	void initVulkan() {
 		createInstance();
 		createSurface();
-		pickPhysicalDevice();
 		createLogicalDevice();
 		createSwapChain();
 		createImageViews();
@@ -192,56 +189,14 @@ private:
 		}
 	}
 
-	void pickPhysicalDevice() {
-		m_VKPhysicalDevice.Init();
-	}
-
 	void createLogicalDevice() {
 
-		std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-		std::set<int32_t> uniqueQueueFamilies = { m_VKPhysicalDevice.GetGraphicsQueueFamilyIndex() , m_VKPhysicalDevice.GetGraphicsQueueFamilyIndex() };
-
-		float queuePriority = 1.0f;
-		for (int32_t queueFamily : uniqueQueueFamilies) {
-			VkDeviceQueueCreateInfo queueCreateInfo{};
-			queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-			queueCreateInfo.queueFamilyIndex = queueFamily;
-			queueCreateInfo.queueCount = 1;
-			queueCreateInfo.pQueuePriorities = &queuePriority;
-			queueCreateInfos.push_back(queueCreateInfo);
-		}
-
-		VkPhysicalDeviceFeatures deviceFeatures{};
-
-		VkDeviceCreateInfo createInfo{};
-		createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-
-		createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
-		createInfo.pQueueCreateInfos = queueCreateInfos.data();
-
-		createInfo.pEnabledFeatures = &deviceFeatures;
-
-		createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
-		createInfo.ppEnabledExtensionNames = deviceExtensions.data();
-
-		if (m_VKContext.GetEnableValidationLayers()) {
-			createInfo.enabledLayerCount = static_cast<uint32_t>(m_VKContext.GetLayerNames().size());
-			createInfo.ppEnabledLayerNames = m_VKContext.GetLayerNames().data();
-		}
-		else {
-			createInfo.enabledLayerCount = 0;
-		}
- 		auto vk = m_VKPhysicalDevice.GetHandle();
-		if (vkCreateDevice(m_VKPhysicalDevice.GetHandle(), &createInfo, nullptr, &device) != VK_SUCCESS) {
-			throw std::runtime_error("failed to create logical device!");
-		}
-
-		vkGetDeviceQueue(device, m_VKPhysicalDevice.GetGraphicsQueueFamilyIndex(), 0, &graphicsQueue);
-		vkGetDeviceQueue(device, m_VKPhysicalDevice.GetGraphicsQueueFamilyIndex(), 0, &presentQueue);
+		m_VKDevice.Init();
+		device = m_VKDevice.GetDevice();
 	}
 
 	void createSwapChain() {
-		SwapChainSupportDetails swapChainSupport = querySwapChainSupport(m_VKPhysicalDevice.GetHandle());
+		SwapChainSupportDetails swapChainSupport = querySwapChainSupport(m_VKDevice.GetPhysicalDevice()->GetHandle());
 
 		VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
 		VkPresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
@@ -263,9 +218,9 @@ private:
 		createInfo.imageArrayLayers = 1;
 		createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-		uint32_t queueFamilyIndices[] = { m_VKPhysicalDevice.GetGraphicsQueueFamilyIndex(), m_VKPhysicalDevice.GetGraphicsQueueFamilyIndex() };
+		uint32_t queueFamilyIndices[] = { m_VKDevice.GetPhysicalDevice()->GetGraphicsQueueFamilyIndex(), m_VKDevice.GetPhysicalDevice()->GetGraphicsQueueFamilyIndex() };
 
-		if (m_VKPhysicalDevice.GetGraphicsQueueFamilyIndex() != m_VKPhysicalDevice.GetGraphicsQueueFamilyIndex()) {
+		if (m_VKDevice.GetPhysicalDevice()->GetGraphicsQueueFamilyIndex() != m_VKDevice.GetPhysicalDevice()->GetGraphicsQueueFamilyIndex()) {
 			createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
 			createInfo.queueFamilyIndexCount = 2;
 			createInfo.pQueueFamilyIndices = queueFamilyIndices;
@@ -494,7 +449,7 @@ private:
 		VkCommandPoolCreateInfo poolInfo{};
 		poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 		poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-		poolInfo.queueFamilyIndex = m_VKPhysicalDevice.GetGraphicsQueueFamilyIndex();
+		poolInfo.queueFamilyIndex = m_VKDevice.GetPhysicalDevice()->GetGraphicsQueueFamilyIndex();
 
 		if (vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create command pool!");
@@ -617,7 +572,7 @@ private:
 		submitInfo.signalSemaphoreCount = 1;
 		submitInfo.pSignalSemaphores = signalSemaphores;
 
-		if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFences[currentFrame]) != VK_SUCCESS) {
+		if (vkQueueSubmit(m_VKDevice.GetGraphicsQueue(), 1, &submitInfo, inFlightFences[currentFrame]) != VK_SUCCESS) {
 			throw std::runtime_error("failed to submit draw command buffer!");
 		}
 
@@ -633,7 +588,7 @@ private:
 
 		presentInfo.pImageIndices = &imageIndex;
 
-		result = vkQueuePresentKHR(presentQueue, &presentInfo);
+		result = vkQueuePresentKHR(m_VKDevice.GetPresentQueue(), &presentInfo);
 
 		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized) {
 			framebufferResized = false;
@@ -722,62 +677,6 @@ private:
 		}
 
 		return details;
-	}
-
-	bool checkDeviceExtensionSupport(VkPhysicalDevice device) {
-		uint32_t extensionCount;
-		vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
-
-		std::vector<VkExtensionProperties> availableExtensions(extensionCount);
-		vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data());
-
-		std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
-
-		for (const auto& extension : availableExtensions) {
-			requiredExtensions.erase(extension.extensionName);
-		}
-
-		return requiredExtensions.empty();
-	}
-
-
-	std::vector<const char*> getRequiredExtensions() {
-		uint32_t glfwExtensionCount = 0;
-		const char** glfwExtensions;
-		glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
-
-		std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
-
-		if (m_VKContext.GetEnableValidationLayers()) {
-			extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-		}
-
-		return extensions;
-	}
-
-	bool checkValidationLayerSupport() {
-		uint32_t layerCount;
-		vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
-
-		std::vector<VkLayerProperties> availableLayers(layerCount);
-		vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
-
-		for (const char* layerName : m_VKContext.GetLayerNames()) {
-			bool layerFound = false;
-
-			for (const auto& layerProperties : availableLayers) {
-				if (strcmp(layerName, layerProperties.layerName) == 0) {
-					layerFound = true;
-					break;
-				}
-			}
-
-			if (!layerFound) {
-				return false;
-			}
-		}
-
-		return true;
 	}
 
 	static std::vector<char> readFile(const std::string& filename) {
