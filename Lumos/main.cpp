@@ -73,7 +73,6 @@ private:
 	VkPipelineLayout pipelineLayout;
 	VkPipeline graphicsPipeline;
 
-	VkCommandPool commandPool;
 	std::vector<VkCommandBuffer> commandBuffers;
 
 	std::vector<VkSemaphore> imageAvailableSemaphores;
@@ -84,7 +83,6 @@ private:
 	bool framebufferResized = false;
 
 	Lumos::VKContext m_VKContext;
-	Lumos::VKDevice m_VKDevice;
 
 
 	void initWindow() {
@@ -111,7 +109,6 @@ private:
 		createRenderPass();
 		createGraphicsPipeline();
 		createFramebuffers();
-		createCommandPool();
 		createCommandBuffers();
 		createSyncObjects();
 	}
@@ -151,8 +148,6 @@ private:
 			vkDestroyFence(device, inFlightFences[i], nullptr);
 		}
 
-		vkDestroyCommandPool(device, commandPool, nullptr);
-
 		vkDestroyDevice(device, nullptr);
 
 		vkDestroySurfaceKHR(Lumos::VKContext::GetVkInstance(), surface, nullptr);
@@ -190,13 +185,12 @@ private:
 	}
 
 	void createLogicalDevice() {
-
-		m_VKDevice.Init();
-		device = m_VKDevice.GetDevice();
+		Lumos::VKDevice::Get().Init();
+		device = Lumos::VKDevice::GetHandle();
 	}
 
 	void createSwapChain() {
-		SwapChainSupportDetails swapChainSupport = querySwapChainSupport(m_VKDevice.GetPhysicalDevice()->GetHandle());
+		SwapChainSupportDetails swapChainSupport = querySwapChainSupport(Lumos::VKDevice::Get().GetPhysicalDevice()->GetHandle());
 
 		VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
 		VkPresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
@@ -218,9 +212,9 @@ private:
 		createInfo.imageArrayLayers = 1;
 		createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-		uint32_t queueFamilyIndices[] = { m_VKDevice.GetPhysicalDevice()->GetGraphicsQueueFamilyIndex(), m_VKDevice.GetPhysicalDevice()->GetGraphicsQueueFamilyIndex() };
+		uint32_t queueFamilyIndices[] = { Lumos::VKDevice::Get().GetPhysicalDevice()->GetGraphicsQueueFamilyIndex(), Lumos::VKDevice::Get().GetPhysicalDevice()->GetGraphicsQueueFamilyIndex() };
 
-		if (m_VKDevice.GetPhysicalDevice()->GetGraphicsQueueFamilyIndex() != m_VKDevice.GetPhysicalDevice()->GetGraphicsQueueFamilyIndex()) {
+		if (Lumos::VKDevice::Get().GetPhysicalDevice()->GetGraphicsQueueFamilyIndex() != Lumos::VKDevice::Get().GetPhysicalDevice()->GetGraphicsQueueFamilyIndex()) {
 			createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
 			createInfo.queueFamilyIndexCount = 2;
 			createInfo.pQueueFamilyIndices = queueFamilyIndices;
@@ -444,24 +438,12 @@ private:
 		}
 	}
 
-	void createCommandPool() {
-
-		VkCommandPoolCreateInfo poolInfo{};
-		poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-		poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-		poolInfo.queueFamilyIndex = m_VKDevice.GetPhysicalDevice()->GetGraphicsQueueFamilyIndex();
-
-		if (vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
-			throw std::runtime_error("failed to create command pool!");
-		}
-	}
-
 	void createCommandBuffers() {
 		commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
 
 		VkCommandBufferAllocateInfo allocInfo{};
 		allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-		allocInfo.commandPool = commandPool;
+		allocInfo.commandPool = Lumos::VKDevice::Get().GetCommandPool()->GetHandle();
 		allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 		allocInfo.commandBufferCount = (uint32_t)commandBuffers.size();
 
@@ -572,7 +554,7 @@ private:
 		submitInfo.signalSemaphoreCount = 1;
 		submitInfo.pSignalSemaphores = signalSemaphores;
 
-		if (vkQueueSubmit(m_VKDevice.GetGraphicsQueue(), 1, &submitInfo, inFlightFences[currentFrame]) != VK_SUCCESS) {
+		if (vkQueueSubmit(Lumos::VKDevice::Get().GetGraphicsQueue(), 1, &submitInfo, inFlightFences[currentFrame]) != VK_SUCCESS) {
 			throw std::runtime_error("failed to submit draw command buffer!");
 		}
 
@@ -588,7 +570,7 @@ private:
 
 		presentInfo.pImageIndices = &imageIndex;
 
-		result = vkQueuePresentKHR(m_VKDevice.GetPresentQueue(), &presentInfo);
+		result = vkQueuePresentKHR(Lumos::VKDevice::Get().GetPresentQueue(), &presentInfo);
 
 		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized) {
 			framebufferResized = false;

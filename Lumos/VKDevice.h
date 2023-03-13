@@ -2,7 +2,7 @@
 #include "VK.h"
 #include "TSingleton.h"
 #include "VKPhysicalDevice.h"
-
+#include "VKCommandPool.h"
 #include <shared_mutex>
 
 namespace Lumos
@@ -52,6 +52,11 @@ namespace Lumos
 			return m_PhysicalDevice;
 		}
 
+		const std::shared_ptr<VKCommandPool>& GetCommandPool() const
+		{
+			return m_CommandPool;
+		}
+
 	private:
 		VkDevice m_Device;
 
@@ -63,7 +68,7 @@ namespace Lumos
 		VkDescriptorPool m_DescriptorPool;
 		VkPhysicalDeviceFeatures m_EnabledFeatures;
 
-
+		std::shared_ptr<VKCommandPool> m_CommandPool;
 		std::shared_ptr<VKPhysicalDevice> m_PhysicalDevice;
 
 		bool m_EnableDebugMarkers = false;

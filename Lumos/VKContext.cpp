@@ -20,7 +20,6 @@ namespace Lumos
 	void VKContext::Init()
 	{
 		CreateInstance();
-
 		//SetupDebugCallback();
 	}
 

@@ -99,11 +99,13 @@
   <ItemGroup>
     <ClInclude Include="TSingleton.h" />
     <ClInclude Include="VK.h" />
+    <ClInclude Include="VKCommandPool.h" />
     <ClInclude Include="VKContext.h" />
     <ClInclude Include="VKDevice.h" />
     <ClInclude Include="VKPhysicalDevice.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="VKCommandPool.cpp" />
     <ClCompile Include="VKContext.cpp">
       <ExternalWarningLevel>Level3</ExternalWarningLevel>
       <ExternalWarningLevel>Level3</ExternalWarningLevel>
