@@ -5,6 +5,20 @@
 namespace Lumos
 {
 
+	VkResult CreateDebugReportCallbackEXT(VkInstance instance, const VkDebugReportCallbackCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugReportCallbackEXT* pCallback)
+	{
+		auto func = reinterpret_cast<PFN_vkCreateDebugReportCallbackEXT>(vkGetInstanceProcAddr(instance, "vkCreateDebugReportCallbackEXT"));
+
+		if (func != nullptr)
+		{
+			return func(instance, pCreateInfo, pAllocator, pCallback);
+		}
+		else
+		{
+			return VK_ERROR_EXTENSION_NOT_PRESENT;
+		}
+	}
+
 	VkInstance VKContext::s_VkInstance = nullptr;
 
 	VKContext::VKContext()
@@ -63,6 +77,62 @@ namespace Lumos
 		}
 	}
 
+
+	VkBool32  VKContext::DebugCallback(VkDebugReportFlagsEXT flags,
+		VkDebugReportObjectTypeEXT objType,
+		uint64_t sourceObj,
+		size_t location,
+		int32_t msgCode,
+		const char* pLayerPrefix,
+		const char* pMsg,
+		void* userData)
+	{
+		// TODO
+		if (!flags)
+			return VK_FALSE;
+
+		if (flags & VK_DEBUG_REPORT_ERROR_BIT_EXT)
+		{
+		}
+		// Warnings may hint at unexpected / non-spec API usage
+		if (flags & VK_DEBUG_REPORT_WARNING_BIT_EXT)
+		{
+		}
+		// May indicate sub-optimal usage of the API
+		if (flags & VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT)
+		{
+		}
+		// Informal messages that may become handy during debugging
+		if (flags & VK_DEBUG_REPORT_INFORMATION_BIT_EXT)
+		{
+		}
+		// Diagnostic info from the Vulkan loader and layers
+		// Usually not helpful in terms of API usage, but may help to debug layer and loader problems
+		if (flags & VK_DEBUG_REPORT_DEBUG_BIT_EXT)
+		{
+		}
+
+		return VK_FALSE;
+	}
+
+	void VKContext::SetupDebugCallback()
+	{
+		if (!EnableValidationLayers)
+		{
+			return;
+		}
+
+		VkDebugReportCallbackCreateInfoEXT createInfo = {};
+		createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT;
+		createInfo.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT | VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT;
+		createInfo.pfnCallback = reinterpret_cast<PFN_vkDebugReportCallbackEXT>(DebugCallback);
+
+		VkResult result = CreateDebugReportCallbackEXT(s_VkInstance, &createInfo, nullptr, &m_DebugCallback);
+		if (result != VK_SUCCESS)
+		{
+			// "[VULKAN] Failed to set up debug callback!"
+		}
+	}
 
 	const std::vector<const char*> VKContext::GetRequiredExtensions()
 	{

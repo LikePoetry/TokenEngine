@@ -15,6 +15,15 @@ namespace Lumos
 
 		void Init();
 
+		static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugReportFlagsEXT flags,
+			VkDebugReportObjectTypeEXT objType,
+			uint64_t sourceObj,
+			size_t location,
+			int32_t msgCode,
+			const char* pLayerPrefix,
+			const char* pMsg,
+			void* userData);
+
 		static VkInstance GetVkInstance() { return s_VkInstance; }
 
 		bool GetEnableValidationLayers() { return EnableValidationLayers; }
@@ -24,7 +33,7 @@ namespace Lumos
 
 	protected:
 		void CreateInstance();
-		/*void SetupDebugCallback();*/
+		void SetupDebugCallback();
 		bool CheckValidaionLayerSupport(std::vector<const char*>& validationLayers);
 		bool CheckExtensionSupport(std::vector<const char*>& extensions);
 
