@@ -129,7 +129,24 @@ namespace Lumos
 
 		if (m_OldSwapChain != VK_NULL_HANDLE)
 		{
-			//TODO
+			for (uint32_t i = 0; i < m_SwapChainBufferCount; i++)
+			{
+				if (m_Frames[i].MainCommandBuffer->GetState() == CommandBufferState::Submitted)
+				{
+					m_Frames[i].MainCommandBuffer->Wait();
+				}
+
+				m_Frames[i].MainCommandBuffer->Reset();
+
+				delete m_SwapChainBuffers[i];
+				vkDestroySemaphore(VKDevice::Get().GetDevice(), m_Frames[i].PresentSemaphore, nullptr);
+				m_Frames[i].PresentSemaphore = VK_NULL_HANDLE;
+			}
+
+			m_SwapChainBuffers.clear();
+
+			vkDestroySwapchainKHR(VKDevice::Get().GetDevice(), m_OldSwapChain, VK_NULL_HANDLE);
+			m_OldSwapChain = VK_NULL_HANDLE;
 		}
 
 		uint32_t swapChainImageCount;
@@ -180,10 +197,10 @@ namespace Lumos
 			semaphoreInfo.pNext = nullptr;
 			semaphoreInfo.flags = 0;
 
-			if(m_Frames[i].PresentSemaphore==VK_NULL_HANDLE)
+			if (m_Frames[i].PresentSemaphore == VK_NULL_HANDLE)
 				VK_CHECK_RESULT(vkCreateSemaphore(VKDevice::Get().GetDevice(), &semaphoreInfo, nullptr, &m_Frames[i].PresentSemaphore));
 
-			if(!m_Frames[i].MainCommandBuffer)
+			if (!m_Frames[i].MainCommandBuffer)
 			{
 				m_Frames[i].CommandPool = CreateSharedPtr<VKCommandPool>(VKDevice::Get().GetPhysicalDevice()->GetGraphicsQueueFamilyIndex(), VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
@@ -242,5 +259,28 @@ namespace Lumos
 		glfwCreateWindowSurface(vkInstance, window, nullptr, &surface);
 
 		return surface;
+	}
+
+	void VKSwapChain::OnResize(uint32_t width, uint32_t height, bool forceResize, GLFWwindow* windowHandle)
+	{
+		if (!forceResize && m_Width == width && m_Height == height)
+			return;
+
+		//TODO waitIdle
+
+		m_Width = width;
+		m_Height = height;
+
+		m_OldSwapChain = m_SwapChain;
+		m_SwapChain = VK_NULL_HANDLE;
+
+		if (windowHandle)
+			Init(m_VSyncEnabled, windowHandle);
+		else
+		{
+			Init(m_VSyncEnabled);
+		}
+
+		//TODO waitIdle
 	}
 }

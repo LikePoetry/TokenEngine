@@ -26,7 +26,12 @@ namespace Lumos
 
 		bool Init(bool vsync);
 		bool Init(bool vsync, GLFWwindow* windowHandle);
+
+
+		void OnResize(uint32_t width, uint32_t height, bool forceResize = false, GLFWwindow* windowHandle = nullptr);
+
 		void CreateFrameData();
+
 
 		VkSurfaceKHR CreatePlatformSurface(VkInstance vkInstance, GLFWwindow* window);
 
