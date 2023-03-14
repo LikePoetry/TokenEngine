@@ -1,13 +1,23 @@
 #pragma once
 #include "VK.h"
 #include "VKTexture2D.h"
-
+#include "VKCommandBuffer.h"
+#include "VKCommandPool.h"
+#include "Reference.h"
 #include <vector>
 #include <GLFW/glfw3.h>
 
+#define MAX_SWAPCHAIN_BUFFERS 3
 
 namespace Lumos
 {
+	struct FrameData
+	{
+		VkSemaphore PresentSemaphore = VK_NULL_HANDLE;
+		SharedPtr<VKCommandPool> CommandPool;
+		SharedPtr<VKCommandBuffer> MainCommandBuffer;
+	};
+
 	class VKSwapChain
 	{
 	public:
@@ -16,6 +26,7 @@ namespace Lumos
 
 		bool Init(bool vsync);
 		bool Init(bool vsync, GLFWwindow* windowHandle);
+		void CreateFrameData();
 
 		VkSurfaceKHR CreatePlatformSurface(VkInstance vkInstance, GLFWwindow* window);
 
@@ -26,8 +37,11 @@ namespace Lumos
 		VkSwapchainKHR GetSwapChain() const { return m_SwapChain; }
 		VkFormat GetScreenFormat() const { return m_ColourFormat; }
 
-	private:
+		//TODO
+		FrameData& GetCurrentFrameData(int index) { return m_Frames[index]; }
 
+	private:
+		FrameData m_Frames[MAX_SWAPCHAIN_BUFFERS];
 		void FindImageFormatAndColourSpace();
 
 		uint32_t m_Width;

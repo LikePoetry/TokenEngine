@@ -166,8 +166,31 @@ namespace Lumos
 
 		delete[] pSwapChainImages;
 
+		CreateFrameData();
 
 		return true;
+	}
+
+	void VKSwapChain::CreateFrameData()
+	{
+		for (uint32_t i = 0; i < m_SwapChainBufferCount; i++)
+		{
+			VkSemaphoreCreateInfo semaphoreInfo = {};
+			semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+			semaphoreInfo.pNext = nullptr;
+			semaphoreInfo.flags = 0;
+
+			if(m_Frames[i].PresentSemaphore==VK_NULL_HANDLE)
+				VK_CHECK_RESULT(vkCreateSemaphore(VKDevice::Get().GetDevice(), &semaphoreInfo, nullptr, &m_Frames[i].PresentSemaphore));
+
+			if(!m_Frames[i].MainCommandBuffer)
+			{
+				m_Frames[i].CommandPool = CreateSharedPtr<VKCommandPool>(VKDevice::Get().GetPhysicalDevice()->GetGraphicsQueueFamilyIndex(), VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+
+				m_Frames[i].MainCommandBuffer = CreateSharedPtr<VKCommandBuffer>();
+				m_Frames[i].MainCommandBuffer->Init(true, m_Frames[i].CommandPool->GetHandle());
+			}
+		}
 	}
 
 	void VKSwapChain::FindImageFormatAndColourSpace()

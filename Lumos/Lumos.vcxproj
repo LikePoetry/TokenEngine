@@ -97,17 +97,23 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Reference.h" />
+    <ClInclude Include="ReferenceCounter.h" />
     <ClInclude Include="TSingleton.h" />
     <ClInclude Include="VK.h" />
+    <ClInclude Include="VKCommandBuffer.h" />
     <ClInclude Include="VKCommandPool.h" />
     <ClInclude Include="VKContext.h" />
     <ClInclude Include="VKDevice.h" />
+    <ClInclude Include="VKInitialisers.h" />
     <ClInclude Include="VKPhysicalDevice.h" />
     <ClInclude Include="VKSwapChain.h" />
     <ClInclude Include="VKTexture2D.h" />
     <ClInclude Include="VKUtilities.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Reference.cpp" />
+    <ClCompile Include="VKCommandBuffer.cpp" />
     <ClCompile Include="VKCommandPool.cpp" />
     <ClCompile Include="VKContext.cpp">
       <ExternalWarningLevel>Level3</ExternalWarningLevel>
