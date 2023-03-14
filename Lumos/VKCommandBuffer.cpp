@@ -36,7 +36,7 @@ namespace Lumos
 		VK_CHECK_RESULT(vkCreateSemaphore(VKDevice::Get().GetDevice(), &semaphoreInfo, nullptr, &m_Semaphore));
 		
 		//TODO Fence ³éÏó
-
+		m_Fence = CreateSharedPtr<VKFence>(true);
 		return true;
 	}
 }

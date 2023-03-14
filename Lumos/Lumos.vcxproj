@@ -105,6 +105,7 @@
     <ClInclude Include="VKCommandPool.h" />
     <ClInclude Include="VKContext.h" />
     <ClInclude Include="VKDevice.h" />
+    <ClInclude Include="VKFence.h" />
     <ClInclude Include="VKInitialisers.h" />
     <ClInclude Include="VKPhysicalDevice.h" />
     <ClInclude Include="VKSwapChain.h" />
@@ -123,6 +124,7 @@
       <ExternalWarningLevel>Level3</ExternalWarningLevel>
       <ExternalWarningLevel>Level3</ExternalWarningLevel>
     </ClCompile>
+    <ClCompile Include="VKFence.cpp" />
     <ClCompile Include="VKPhysicalDevice.cpp">
       <ExternalWarningLevel>Level3</ExternalWarningLevel>
       <ExternalWarningLevel>Level3</ExternalWarningLevel>
