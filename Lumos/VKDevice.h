@@ -42,6 +42,11 @@ namespace Lumos
 			return VKDevice::Get().GetDevice();
 		}
 
+		VkPhysicalDevice GetGPU() const
+		{
+			return m_PhysicalDevice->GetHandle();
+		}
+
 		const VkPhysicalDeviceFeatures& GetEnabledFeatures()
 		{
 			return m_EnabledFeatures;

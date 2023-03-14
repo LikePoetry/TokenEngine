@@ -103,6 +103,9 @@
     <ClInclude Include="VKContext.h" />
     <ClInclude Include="VKDevice.h" />
     <ClInclude Include="VKPhysicalDevice.h" />
+    <ClInclude Include="VKSwapChain.h" />
+    <ClInclude Include="VKTexture2D.h" />
+    <ClInclude Include="VKUtilities.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="VKCommandPool.cpp" />
@@ -122,6 +125,9 @@
       <ExternalWarningLevel>Level3</ExternalWarningLevel>
       <ExternalWarningLevel>Level3</ExternalWarningLevel>
     </ClCompile>
+    <ClCompile Include="VKSwapChain.cpp" />
+    <ClCompile Include="VKTexture2D.cpp" />
+    <ClCompile Include="VKUtilities.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\vendor\GLFW\GLFW.vcxproj">
